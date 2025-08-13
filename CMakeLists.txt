@@ -22,4 +22,4 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(${CMAKE_SOURCE_DIR}/includes)
 # include_directories(${CMAKE_SOURCE_DIR}/lib)
 
-add_executable(  Socket_example app.cpp ${SRC_FILES}   )
+add_executable(  socket_example app.cpp ${SRC_FILES}   )

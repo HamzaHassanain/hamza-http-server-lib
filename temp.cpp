@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-class SelectServer
+class Select
 {
 private:
     int server_fd;
@@ -25,7 +25,7 @@ private:
     sockaddr_in server_addr;
 
 public:
-    SelectServer(const std::string &ip, int port)
+    Select(const std::string &ip, int port)
     {
         // Create socket
         server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -78,7 +78,7 @@ public:
         std::cout << "Select server initialized on fd " << server_fd << std::endl;
     }
 
-    ~SelectServer()
+    ~Select()
     {
         // Close all client connections
         for (auto &[fd, info] : clients)
@@ -123,7 +123,7 @@ public:
             if (activity == 0)
             {
                 // Timeout - show server is alive
-                std::cout << "." << std::flush;
+                std::cout << max_fd << " is alive" << std::endl;
                 continue;
             }
 
@@ -350,25 +350,8 @@ int main()
 {
     try
     {
-        std::cout << "Starting Select-based Echo Server" << std::endl;
-        std::cout << "==================================" << std::endl;
-        std::cout << "Features:" << std::endl;
-        std::cout << "- Pure POSIX socket implementation" << std::endl;
-        std::cout << "- Multiple concurrent connections using select()" << std::endl;
-        std::cout << "- Synchronous I/O multiplexing" << std::endl;
-        std::cout << "- Real-time connection statistics" << std::endl;
-        std::cout << "- Broadcast messaging support" << std::endl;
-        std::cout << "- Client listing" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Commands:" << std::endl;
-        std::cout << "- 'stats' - Show detailed server statistics" << std::endl;
-        std::cout << "- 'list' - List all connected clients" << std::endl;
-        std::cout << "- 'broadcast <message>' - Send message to all clients" << std::endl;
-        std::cout << "- 'exit' - Disconnect from server" << std::endl;
-        std::cout << "- Any other text will be echoed back" << std::endl;
-        std::cout << std::endl;
 
-        SelectServer server("127.0.0.1", 12349);
+        Select server("127.0.0.1", 12349);
         std::cout << "Select server listening on 127.0.0.1:12349" << std::endl;
         std::cout << "Press Ctrl+C to stop the server" << std::endl;
         std::cout << std::endl;

@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <utilities.hpp>
+#include <iostream>
 #ifdef _WIN32
 #include <winsock2.h>
 typedef SOCKET socket_t;
@@ -18,7 +19,8 @@ namespace hamza
         socket_t fd;
 
     public:
-        explicit file_descriptor() = default;
+        file_descriptor() = default;
+
         explicit file_descriptor(socket_t fd)
         {
             // check if actual file descriptor
@@ -33,7 +35,6 @@ namespace hamza
         }
         int get() const { return fd; }
 
-        ~file_descriptor() = default;
         file_descriptor(const file_descriptor &) = default;
         file_descriptor &operator=(const file_descriptor &) = default;
         file_descriptor(file_descriptor &&) = default;
@@ -59,5 +60,6 @@ namespace hamza
             os << fd.get();
             return os;
         }
+        ~file_descriptor() = default;
     };
 };

@@ -3,6 +3,7 @@
 #include <string>
 #include <family.hpp>
 #include <ip_address.hpp>
+#include <chrono>
 #include <sys/socket.h>
 // Platform detection and common socket types
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -26,6 +27,7 @@ const int SOCKET_ERROR_VALUE = -1;
 
 namespace hamza
 {
+
     const int IPV4 = AF_INET;
     const int IPV6 = AF_INET6;
 
@@ -50,4 +52,66 @@ namespace hamza
     bool is_valid_socket(socket_t socket);     // Check if socket is valid
     bool is_socket_open(int fd);               // Check if fd is an open socket
     bool is_socket_connected(socket_t socket); // Check if socket is connected
+
+    struct unique_id
+    {
+        int id = -1;
+        unique_id()
+        {
+            id = std::chrono::steady_clock::now().time_since_epoch().count();
+        }
+
+        // copy constructor
+        unique_id(const unique_id &other)
+        {
+            id = other.id;
+        }
+
+        // copy assignment operator
+        unique_id &operator=(const unique_id &other)
+        {
+            if (this != &other)
+            {
+                id = other.id;
+            }
+            return *this;
+        }
+
+        // move constructor
+        unique_id(unique_id &&other) noexcept
+        {
+            id = other.id;
+            other.id = -1;
+        }
+
+        // move assignment operator
+        unique_id &operator=(unique_id &&other) noexcept
+        {
+            if (this != &other)
+            {
+                id = other.id;
+                other.id = -1;
+            }
+            return *this;
+        }
+
+        int get_id() const noexcept
+        {
+            return id;
+        }
+
+        bool operator==(const unique_id &other) const noexcept
+        {
+            return id == other.id;
+        }
+
+        bool operator!=(const unique_id &other) const noexcept
+        {
+            return id != other.id;
+        }
+        bool operator<(const unique_id &other) const noexcept
+        {
+            return id < other.id;
+        }
+    };
 }

@@ -25,8 +25,20 @@ namespace hamza
 
         this->bind(addr); // Bind the socket to the address
     }
-
-    socket::socket(const file_descriptor &fd, const Protocol &protocol)
+    socket::socket(const socket_address &addr, const Protocol &protocol, bool reuse)
+        : addr(addr), fd(socket_t(INVALID_SOCKET_VALUE))
+    {
+        int socket_file_descriptor = ::socket(addr.get_family().get(), static_cast<int>(protocol), 0);
+        if (!is_valid_socket(socket_file_descriptor))
+        {
+            throw std::runtime_error("Failed to create socket.");
+        }
+        this->fd = file_descriptor(socket_file_descriptor);
+        this->protocol = protocol;
+        this->set_reuse_address(reuse); // Set SO_REUSEADDR option
+        this->bind(addr);               // Bind the socket to the address
+    }
+    socket::socket(const file_descriptor &fd, const Protocol &protocol) : addr(socket_address()), fd(fd), protocol(protocol)
     {
 
         if (!is_socket_open(fd.get()))
@@ -64,35 +76,40 @@ namespace hamza
         {
             throw std::runtime_error("Listen is only supported for TCP sockets");
         }
-
         if (::listen(fd.get(), backlog) == SOCKET_ERROR_VALUE)
         {
             throw std::runtime_error("Failed to listen on socket: " + std::string(strerror(errno)));
         }
     }
-    void socket::set_non_blocking(bool non_blocking)
+    // void socket::set_non_blocking(bool non_blocking)
+    // {
+    //     int flags = fcntl(fd.get(), F_GETFL, 0);
+    //     if (flags == -1)
+    //     {
+    //         throw std::runtime_error("Failed to get socket flags: " + std::string(strerror(errno)));
+    //     }
+    //     if (non_blocking)
+    //     {
+    //         flags |= O_NONBLOCK;
+    //     }
+    //     else
+    //     {
+    //         flags &= ~O_NONBLOCK;
+    //     }
+    //     if (fcntl(fd.get(), F_SETFL, flags) == -1)
+    //     {
+    //         throw std::runtime_error("Failed to set socket non-blocking mode: " + std::string(strerror(errno)));
+    //     }
+    // }
+    void socket::set_reuse_address(bool reuse)
     {
-        int flags = fcntl(fd.get(), F_GETFL, 0);
-        if (flags == -1)
+        int optval = reuse ? 1 : 0;
+        std::cout << fd.get() << " is the file descriptor" << std::endl;
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw std::runtime_error("Failed to get socket flags: " + std::string(strerror(errno)));
-        }
-
-        if (non_blocking)
-        {
-            flags |= O_NONBLOCK;
-        }
-        else
-        {
-            flags &= ~O_NONBLOCK;
-        }
-
-        if (fcntl(fd.get(), F_SETFL, flags) == -1)
-        {
-            throw std::runtime_error("Failed to set socket non-blocking mode: " + std::string(strerror(errno)));
+            throw std::runtime_error("Failed to set SO_REUSEADDR option: " + std::string(strerror(errno)));
         }
     }
-
     socket socket::accept()
     {
         if (protocol != Protocol::TCP)
@@ -112,7 +129,7 @@ namespace hamza
         socket_address client_socket_address(client_addr, client_addr_len);
         socket new_socket(file_descriptor(client_fd), protocol);
         new_socket.addr = client_socket_address; // Set the address of the new socket
-        return (new_socket);
+        return new_socket;
     }
 
     data_buffer socket::receive(socket_address &client_addr)
@@ -162,7 +179,7 @@ namespace hamza
         }
     }
 
-    void socket::send(const data_buffer &data)
+    void socket::send_on_connection(const data_buffer &data)
     {
         if (protocol != Protocol::TCP)
         {
@@ -260,6 +277,14 @@ namespace hamza
 
     socket::~socket()
     {
-        disconnect();
+        std::cout << "A socket got destroyed " << fd.get() << std::endl;
+        try
+        {
+            disconnect();
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error during socket destruction: " << e.what() << std::endl;
+        }
     }
 }
