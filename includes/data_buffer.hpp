@@ -18,23 +18,6 @@ namespace hamza
         // Constructor to create buffer from raw data
         data_buffer(const char *data, std::size_t size) : buffer(data, data + size) {}
 
-        // Move constructor
-        data_buffer(data_buffer &&other) noexcept : buffer(std::move(other.buffer)) {}
-
-        // Move assignment operator
-        data_buffer &operator=(data_buffer &&other) noexcept
-        {
-            if (this != &other)
-            {
-                buffer = std::move(other.buffer);
-            }
-            return *this;
-        }
-
-        // Disable copy semantics
-        data_buffer(const data_buffer &) = delete;
-        data_buffer &operator=(const data_buffer &) = delete;
-
         void append(const char *data, std::size_t size)
         {
             buffer.insert(buffer.end(), data, data + size);

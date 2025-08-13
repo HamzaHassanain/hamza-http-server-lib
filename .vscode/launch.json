@@ -5,7 +5,7 @@
       "name": "Hamza (gdb) Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/Socket_example",
+      "program": "${workspaceFolder}/build/socket_example",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
