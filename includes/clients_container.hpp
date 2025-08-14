@@ -28,7 +28,6 @@ namespace hamza
         {
             std::lock_guard<std::mutex> lock(mtx);
             auto it = sockets.begin();
-            std::cout << "Before erase size: " << sockets.size() << std::endl;
             for (; it != sockets.end(); ++it)
             {
                 if ((*it)->get_file_descriptor() == sock->get_file_descriptor())

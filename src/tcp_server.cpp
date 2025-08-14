@@ -7,7 +7,6 @@
 #include <memory>
 #include <cstring>
 #include <algorithm>
-
 namespace hamza
 {
     tcp_server::tcp_server(const hamza::socket_address &addr)
@@ -144,8 +143,8 @@ namespace hamza
 
             client_ip = sock_ptr->get_remote_address().get_ip_address().get();
             client_port = std::to_string(sock_ptr->get_remote_address().get_port().get());
-            hamza::data_buffer db = sock_ptr->receive_on_connection();
 
+            hamza::data_buffer db = sock_ptr->receive_on_connection();
             this->on_message_received(sock_ptr, db);
         }
         catch (const std::exception &e)
@@ -193,6 +192,7 @@ namespace hamza
     }
     void tcp_server::close_connection(std::shared_ptr<hamza::socket> sock_ptr)
     {
+        std::lock_guard<std::mutex> lock(close_mutex);
         if (sock_ptr)
         {
             remove_client(sock_ptr);

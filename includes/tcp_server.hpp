@@ -9,16 +9,20 @@
 #include <memory>
 #include <cstring>
 #include <select_server.hpp>
+#include <mutex>
 
 namespace hamza
 {
 
     class tcp_server
     {
+
     private:
         select_server fd_select_server;
         clients_container clients;
         std::shared_ptr<hamza::socket> server_socket;
+
+        std::mutex close_mutex;
 
         struct timeval make_timeout(int seconds);
         void remove_client(std::shared_ptr<hamza::socket> sock_ptr);
@@ -27,6 +31,8 @@ namespace hamza
     public:
         tcp_server(const hamza::socket_address &addr);
         void run();
+
+    protected:
         void close_connection(std::shared_ptr<hamza::socket> sock_ptr);
         virtual void on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message) = 0;
         virtual void on_waiting_for_activity();

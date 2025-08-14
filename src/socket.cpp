@@ -80,30 +80,10 @@ namespace hamza
             throw std::runtime_error("Failed to listen on socket: " + std::string(strerror(errno)));
         }
     }
-    // void socket::set_non_blocking(bool non_blocking)
-    // {
-    //     int flags = fcntl(fd.get(), F_GETFL, 0);
-    //     if (flags == -1)
-    //     {
-    //         throw std::runtime_error("Failed to get socket flags: " + std::string(strerror(errno)));
-    //     }
-    //     if (non_blocking)
-    //     {
-    //         flags |= O_NONBLOCK;
-    //     }
-    //     else
-    //     {
-    //         flags &= ~O_NONBLOCK;
-    //     }
-    //     if (fcntl(fd.get(), F_SETFL, flags) == -1)
-    //     {
-    //         throw std::runtime_error("Failed to set socket non-blocking mode: " + std::string(strerror(errno)));
-    //     }
-    // }
+
     void socket::set_reuse_address(bool reuse)
     {
         int optval = reuse ? 1 : 0;
-        // std::cout << fd.get() << " is the file descriptor" << std::endl;
         if (setsockopt(fd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
             throw std::runtime_error("Failed to set SO_REUSEADDR option: " + std::string(strerror(errno)));
@@ -216,15 +196,22 @@ namespace hamza
             throw std::runtime_error("receive_on_connection is only supported for TCP sockets");
         }
 
-        // read data chunk by chunk because sizes may be too large
-        char buffer[1024]; // 1KB buffer
         data_buffer received_data;
+        const int MAX_BUFFER_SIZE = 1024; // 64KB buffer for TCP
+        char buffer[MAX_BUFFER_SIZE];     // 64KB buffer for TCP
+        int itrs = 0;
+        int total_received = 0;
         while (true)
         {
+            itrs++;
             ssize_t bytes_received = ::read(fd.get(), buffer, sizeof(buffer));
 
             if (bytes_received == SOCKET_ERROR_VALUE)
             {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    break;
+                }
                 throw std::runtime_error("Failed to read data: " + std::string(strerror(errno)));
             }
 
@@ -234,13 +221,14 @@ namespace hamza
             }
 
             received_data.append(buffer, static_cast<std::size_t>(bytes_received));
-
-            if (buffer[bytes_received - 1] == '\n')
+            total_received += bytes_received;
+            if (bytes_received < MAX_BUFFER_SIZE)
             {
                 break;
             }
         }
-
+        // std::cout << "Received " << itrs << " iterations of data." << std::endl;
+        // std::cout << "Total bytes received: " << total_received << std::endl;
         return received_data;
     }
 
