@@ -6,32 +6,27 @@
 #include <set>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 namespace hamza
 {
-
-    struct compare_shared_ptr
-    {
-        bool operator()(const std::shared_ptr<hamza::socket> &a, const std::shared_ptr<hamza::socket> &b) const
-        {
-            return a->get_file_descriptor().get() < b->get_file_descriptor().get();
-        }
-    };
-
     struct clients_container
     {
     private:
         std::vector<std::shared_ptr<hamza::socket>> sockets;
         using callback = std::function<void(std::shared_ptr<hamza::socket>)>;
+        std::mutex mtx;
 
     public:
         void insert(std::shared_ptr<hamza::socket> sock)
         {
+            std::lock_guard<std::mutex> lock(mtx);
             sockets.push_back(sock);
         }
 
         void erase(std::shared_ptr<hamza::socket> sock)
         {
+            std::lock_guard<std::mutex> lock(mtx);
             auto it = sockets.begin();
             std::cout << "Before erase size: " << sockets.size() << std::endl;
             for (; it != sockets.end(); ++it)
@@ -62,6 +57,7 @@ namespace hamza
         }
         void cleanup()
         {
+            std::lock_guard<std::mutex> lock(mtx);
             sockets.erase(std::remove_if(sockets.begin(), sockets.end(),
                                          [](const std::shared_ptr<hamza::socket> &sock)
                                          {

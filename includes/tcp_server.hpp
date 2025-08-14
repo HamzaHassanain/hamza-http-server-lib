@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <cstring>
+#include <select_server.hpp>
 
 namespace hamza
 {
@@ -15,10 +16,8 @@ namespace hamza
     class tcp_server
     {
     private:
-        hamza::clients_container clients;
-        fd_set master_fds;
-        fd_set read_fds;
-        int max_fds;
+        select_server fd_select_server;
+        clients_container clients;
         std::shared_ptr<hamza::socket> server_socket;
 
         struct timeval make_timeout(int seconds);

@@ -35,7 +35,6 @@ int main()
     std::vector<std::thread> client_threads;
     std::function<void()> spinner = [&]()
     {
-        
         hamza::port rand_port = hamza::get_random_free_port();
         hamza::socket_address client_address(hamza::ip_address("127.0.0.1"), rand_port, hamza::family(hamza::IPV4));
         try
@@ -44,23 +43,13 @@ int main()
             client_socket.connect(server_address);
             auto data_sent = hamza::data_buffer("Hello from client on port " + std::to_string(rand_port.get()) + "\n");
             client_socket.send_on_connection(data_sent);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            // client_socket.disconnect();
+
+            auto msg = client_socket.receive_on_connection();
+            print_client_message("Client on port " + std::to_string(rand_port.get()) + " received: " + msg.to_string());
+
+            std::this_thread::sleep_for(std::chrono::seconds(2));
             auto exit_data = hamza::data_buffer("Goodbye from client on port " + std::to_string(rand_port.get()) + "\n");
             client_socket.send_on_connection(exit_data);
-
-            // while (true)
-            // {
-            //     auto data = client_socket.receive_on_connection();
-            //     if (data.empty())
-            //     {
-            //         std::cerr << "Connection closed by server." << std::endl;
-            //         break;
-            //     }
-            //     client_socket.send_on_connection(data_sent);
-            //     // std::cout << "Client on port " << rand_port.get() << " sent: " << data_sent.to_string() << std::endl;
-            //     std::this_thread::sleep_for(std::chrono::seconds(1));
-            // }
         }
 
         catch (const std::exception &e)

@@ -6,8 +6,7 @@
 #include <functional>
 #include <memory>
 #include <cstring>
-
-#include <mutex>
+#include <algorithm>
 
 namespace hamza
 {
@@ -15,10 +14,9 @@ namespace hamza
     {
         server_socket = std::make_shared<hamza::socket>(addr, hamza::Protocol::TCP, true);
         server_socket->listen();
-        FD_ZERO(&master_fds);
-        FD_ZERO(&read_fds);
-        FD_SET(server_socket->get_file_descriptor().get(), &master_fds);
-        max_fds = server_socket->get_file_descriptor().get();
+
+        fd_select_server.init(server_socket->get_file_descriptor());
+        fd_select_server.set_timeout(1);
     }
     struct timeval tcp_server::make_timeout(int seconds)
     {
@@ -31,10 +29,8 @@ namespace hamza
 
     void tcp_server::remove_client(std::shared_ptr<hamza::socket> sock_ptr)
     {
-
         try
         {
-
             if (sock_ptr == nullptr)
             {
                 throw std::runtime_error("Invalid socket pointer.");
@@ -50,14 +46,14 @@ namespace hamza
                 throw std::runtime_error("Server socket is not initialized.");
             }
 
-            FD_CLR(sock_ptr->get_file_descriptor().get(), &master_fds);
+            // FD_CLR(sock_ptr->get_file_descriptor().get(), &master_fds);
+            fd_select_server.remove_fd(sock_ptr->get_file_descriptor());
             clients.erase(sock_ptr);
             sock_ptr->disconnect();
 
             int server_fd = server_socket->get_file_descriptor().get();
-            int max_client_fd = clients.max(); // This returns -1 if no clients
-            max_fds = (max_client_fd == -1) ? server_fd : std::max(server_fd, max_client_fd);
 
+            fd_select_server.set_max_fd(std::max(server_socket->get_file_descriptor().get(), clients.max()));
             this->on_client_disconnect(sock_ptr);
         }
         catch (const std::exception &e)
@@ -76,7 +72,8 @@ namespace hamza
             {
                 throw std::runtime_error("Server socket is not initialized.");
             }
-            if (FD_ISSET(server_socket->get_file_descriptor().get(), &read_fds))
+
+            if (fd_select_server.is_fd_set(server_socket->get_file_descriptor()))
             {
                 handle_new_connection();
             }
@@ -87,7 +84,8 @@ namespace hamza
                 {
                     throw std::runtime_error("Invalid socket pointer in clients container.");
                 }
-                if (FD_ISSET(sock_ptr->get_file_descriptor().get(), &read_fds))
+
+                if (fd_select_server.is_fd_set(sock_ptr->get_file_descriptor()))
                 {
                     handle_client_activity(sock_ptr);
                 }
@@ -107,18 +105,21 @@ namespace hamza
         {
             try
             {
-                read_fds = master_fds;
+                // read_fds = master_fds;
 
-                auto timeout = make_timeout(1);
-                int activity = select(max_fds + 1, &read_fds, nullptr, nullptr, &timeout);
+                // auto timeout = make_timeout(1);
+                // int activity = select(max_fds + 1, &read_fds, nullptr, nullptr, &timeout);
+                int activity = fd_select_server.select();
                 if (activity < 0)
                 {
                     if (errno == EINTR)
                         throw std::runtime_error("Select interrupted");
                     throw std::runtime_error("Select error: " + std::string(strerror(errno)));
                 }
-
-                this->on_waiting_for_activity();
+                if (activity == 0)
+                {
+                    this->on_waiting_for_activity();
+                }
 
                 check_for_activity();
             }
@@ -169,11 +170,13 @@ namespace hamza
             }
 
             clients.insert(client_socket_ptr);
-            FD_SET(client_socket_ptr->get_file_descriptor().get(), &master_fds);
+            // FD_SET(client_socket_ptr->get_file_descriptor().get(), &master_fds);
+            fd_select_server.add_fd(client_socket_ptr->get_file_descriptor());
 
             int server_fd = server_socket->get_file_descriptor().get();
             int max_client_fd = clients.max();
-            max_fds = std::max(server_fd, max_client_fd);
+            int max_fds = std::max(server_fd, max_client_fd);
+            fd_select_server.set_max_fd(max_fds);
 
             this->on_new_client_connected(client_socket_ptr);
         }

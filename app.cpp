@@ -30,9 +30,12 @@ public:
             {
                 std::cout << "Misbehaving client detected. Closing connection." << std::endl;
                 std::cout << sock_ptr->get_remote_address() << " sent an empty message." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                // close_connection(sock_ptr);
+                // std::this_thread::sleep_for(std::chrono::seconds(1));
+                close_connection(sock_ptr);
+                return;
             }
+
+            sock_ptr->send_on_connection(hamza::data_buffer("Message received: " + message.to_string()));
         }
         catch (const std::exception &e)
         {
