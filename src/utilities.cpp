@@ -16,8 +16,35 @@
 #include <unistd.h>
 #endif
 
+#include <random>
+#include <mutex>
+
+std::mutex get_random_free_port_mutex;
+
 namespace hamza
 {
+    port get_random_free_port()
+    {
+        static std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+        static std::uniform_int_distribution<int> dist(1024, 65535);
+
+        std::lock_guard<std::mutex> lock(get_random_free_port_mutex);
+        port p;
+        do
+        {
+            p = port(dist(rng));
+        } while (!is_valid_port(p) && is_free_port(p));
+        return p;
+    }
+    bool is_valid_port(port p)
+    {
+        return p.get() > 0 && p.get() < 65536;
+    }
+    bool is_free_port(port p)
+    {
+        // Check if the port is free (not in use)
+        return !is_valid_socket(socket_t(p.get()));
+    }
     void convert_ip_address_to_network_order(const family &family_ip, const ip_address &address, void *addr)
     {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)

@@ -50,11 +50,10 @@ namespace hamza
         this->fd = fd;
     }
 
-    void socket::connect(const socket_address &addr)
+    void socket::connect(const socket_address &server_address)
     {
-        this->addr = addr;
 
-        if (::connect(fd.get(), this->addr.get_sock_addr(), this->addr.get_sock_addr_len()) == SOCKET_ERROR_VALUE)
+        if (::connect(fd.get(), server_address.get_sock_addr(), server_address.get_sock_addr_len()) == SOCKET_ERROR_VALUE)
         {
             throw std::runtime_error("Failed to connect to address: " + std::string(strerror(errno)));
         }
@@ -104,7 +103,7 @@ namespace hamza
     void socket::set_reuse_address(bool reuse)
     {
         int optval = reuse ? 1 : 0;
-        std::cout << fd.get() << " is the file descriptor" << std::endl;
+        // std::cout << fd.get() << " is the file descriptor" << std::endl;
         if (setsockopt(fd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
             throw std::runtime_error("Failed to set SO_REUSEADDR option: " + std::string(strerror(errno)));
@@ -247,11 +246,18 @@ namespace hamza
 
     void socket::disconnect()
     {
-
-        if (fd.get() != INVALID_SOCKET_VALUE)
+        try
         {
-            close_socket(fd.get());
-            fd = file_descriptor(INVALID_SOCKET_VALUE);
+
+            if (fd.get() != INVALID_SOCKET_VALUE)
+            {
+                close_socket(fd.get());
+                fd = file_descriptor(INVALID_SOCKET_VALUE);
+            }
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error disconnecting socket: " << e.what() << std::endl;
         }
     }
 
@@ -277,14 +283,5 @@ namespace hamza
 
     socket::~socket()
     {
-        std::cout << "A socket got destroyed " << fd.get() << std::endl;
-        try
-        {
-            disconnect();
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error during socket destruction: " << e.what() << std::endl;
-        }
     }
 }

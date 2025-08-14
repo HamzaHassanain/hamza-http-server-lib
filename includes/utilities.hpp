@@ -3,6 +3,7 @@
 #include <string>
 #include <family.hpp>
 #include <ip_address.hpp>
+#include <port.hpp>
 #include <chrono>
 #include <sys/socket.h>
 // Platform detection and common socket types
@@ -40,6 +41,9 @@ namespace hamza
     // Cross-platform socket utilities
     void convert_ip_address_to_network_order(const family &family_ip, const ip_address &address, void *addr);
     std::string get_ip_address_from_network_address(sockaddr_storage &addr);
+    port get_random_free_port();
+    bool is_valid_port(port p);
+    bool is_free_port(port p);
 
     int convert_host_to_network_order(int port);
     int convert_network_order_to_host(int port);
@@ -52,7 +56,6 @@ namespace hamza
     bool is_valid_socket(socket_t socket);     // Check if socket is valid
     bool is_socket_open(int fd);               // Check if fd is an open socket
     bool is_socket_connected(socket_t socket); // Check if socket is connected
-
     struct unique_id
     {
         int id = -1;
