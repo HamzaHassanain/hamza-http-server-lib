@@ -25,6 +25,8 @@ namespace hamza::http
 
     public:
         http_server(const hamza::socket_address &addr);
+        http_server(const std::string &ip, int port)
+            : http_server(hamza::socket_address(hamza::ip_address(ip), hamza::port(port), hamza::family(hamza::IPV4))) {}
 
         void set_request_callback(std::function<void(http_request &, http_response &)> callback);
         void set_listen_success_callback(std::function<void()> callback);

@@ -1,32 +1,23 @@
 #include <bits/stdc++.h>
-#include <socket_address.hpp>
-#include <http_server.hpp>
-#include <http_objects.hpp>
+#include "web/web.hpp"
 
-auto request_callback = [](hamza::http::http_request &request, hamza::http::http_response &response) -> void
+hamza::web::listen_success_callback_t listen_success_callback = []() -> void
 {
-    response.set_status(200, "OK");
-    response.add_header("Content-Type", "text/html");
+    std::cout << "Server is listening -^- " << std::endl;
+};
 
-    std::ifstream file("html/index.html");
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string index = buffer.str();
-
-    response.set_body(index);
-    response.end();
+hamza::web::error_callback_t error_callback = [](std::unique_ptr<hamza::general_socket_exception> e) -> void
+{
+    std::cerr << "Error occurred: " << e->type() << std::endl;
+    std::cerr << "Error occurred: " << e->what() << std::endl;
 };
 
 int main()
 {
     try
     {
-        hamza::socket_address server_address(hamza::ip_address("127.0.0.1"), hamza::port(12349), hamza::family(hamza::IPV4));
-        hamza::http::http_server server(server_address);
-
-        server.set_request_callback(request_callback);
-
-        server.run();
+        hamza::web::web_server server("127.0.0.1", 12349);
+        server.listen(listen_success_callback , error_callback);
     }
     catch (const std::exception &e)
     {

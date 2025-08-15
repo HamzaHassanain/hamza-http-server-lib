@@ -37,9 +37,6 @@ namespace hamza
                 }
             }
 
-            std::cout << "After erase size: " << sockets.size() << std::endl;
-
-            // throw std::runtime_error("Socket not found");
         }
 
         bool contains(std::shared_ptr<hamza::socket> sock) const

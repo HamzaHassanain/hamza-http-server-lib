@@ -15,11 +15,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=addre
 
 
 file(GLOB SRC_FILES src/*.cpp)
-# file(GLOB LIBS lib/*/*.cpp)
+
+# link all cpp files inside framework folder, framework/src
+file(GLOB WEB_SRC_FILES web/src/*.cpp)
 
 set(CMAKE_CXX_STANDARD 17)
 # Add include directory for header.hpp
 include_directories(${CMAKE_SOURCE_DIR}/includes)
 # include_directories(${CMAKE_SOURCE_DIR}/lib)
 
-add_executable(  socket_example app.cpp ${SRC_FILES}   )
+add_executable(  socket_example app.cpp ${SRC_FILES} ${WEB_SRC_FILES} )

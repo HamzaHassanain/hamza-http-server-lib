@@ -116,26 +116,30 @@ namespace hamza::http
 
     void http_server::on_exception(std::unique_ptr<hamza::general_socket_exception> e)
     {
-        std::cerr << "Type: " << e->type() << std::endl;
-        std::cerr << "Socket error: " << e->what() << std::endl;
+
         if (error_callback)
             error_callback(std::move(e));
+        else
+        {
+            std::cerr << "Type: " << e->type() << std::endl;
+            std::cerr << "Socket error: " << e->what() << std::endl;
+        }
     }
 
     void http_server::on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr)
     {
         // for debugging purposes
-        std::cout << "--------------------------------------------------------\n";
-        std::cout << "Client disconnected: " << sock_ptr->get_remote_address() << std::endl;
-        std::cout << "--------------------------------------------------------\n";
+        // std::cout << "--------------------------------------------------------\n";
+        // std::cout << "Client disconnected: " << sock_ptr->get_remote_address() << std::endl;
+        // std::cout << "--------------------------------------------------------\n";
     }
 
     void http_server::on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
     {
         // for debugging purposes
-        std::cout << "--------------------------------------------------------\n";
-        std::cout << "New client connected: " << sock_ptr->get_remote_address() << std::endl;
-        std::cout << "--------------------------------------------------------\n";
+        // std::cout << "--------------------------------------------------------\n";
+        // std::cout << "New client connected: " << sock_ptr->get_remote_address() << std::endl;
+        // std::cout << "--------------------------------------------------------\n";
     }
 
     void http_server::set_request_callback(std::function<void(http_request &, http_response &)> callback)
