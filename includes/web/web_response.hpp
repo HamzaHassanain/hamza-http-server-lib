@@ -3,16 +3,16 @@
 #include <string>
 #include <vector>
 #include <http_objects.hpp>
-#include <web_server.hpp>
 #include <http_headers.hpp>
-#include <web_types.hpp>
+#include <web/web_server.hpp>
+#include <web/web_types.hpp>
 
 namespace hamza::web
 {
     class web_response
     {
         http::http_response response;
-
+        bool did_end = 0;
         web_response(http::http_response &&response)
             : response(std::move(response))
         {
@@ -21,7 +21,10 @@ namespace hamza::web
 
     public:
         friend class web_server;
-
+        void set_status(int status_code, const std::string &status_message)
+        {
+            response.set_status(status_code, status_message);
+        }
         void json(const std::string &json_data)
         {
             response.add_header(http::headers::CONTENT_TYPE, "application/json");
@@ -38,8 +41,29 @@ namespace hamza::web
             response.set_body(text_data);
         }
 
+        void add_header(const std::string &key, const std::string &value)
+        {
+            response.add_header(key, value);
+        }
+        void add_trailer(const std::string &key, const std::string &value)
+        {
+            response.add_trailer(key, value);
+        }
+        void add_cookie(const std::string &name, const std::string &cookie, const std::string &attributes = "")
+        {
+            std::string value = cookie;
+            if (!attributes.empty())
+            {
+                value += "; " + attributes;
+            }
+            response.add_header("Set-Cookie", name + "=" + value);
+        }
+
         void end()
         {
+            if (did_end)
+                return;
+            did_end = true;
             response.end();
         }
     };

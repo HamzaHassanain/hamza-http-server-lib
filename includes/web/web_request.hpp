@@ -2,8 +2,8 @@
 #include <string>
 #include <vector>
 #include <http_objects.hpp>
-#include <web_server.hpp>
 #include <http_headers.hpp>
+#include <web/web_server.hpp>
 
 namespace hamza::web
 {
@@ -27,6 +27,13 @@ namespace hamza::web
         std::string get_method() const
         {
             return request.get_method();
+        }
+        std::string get_path() const
+        {
+            size_t pos = request.get_uri().find('?');
+            if (pos == std::string::npos)
+                return request.get_uri();
+            return request.get_uri().substr(0, pos);
         }
 
         std::string get_uri() const
@@ -52,20 +59,13 @@ namespace hamza::web
             }
             return result;
         }
-        std::string get_path() const
-        {
-            size_t pos = request.get_uri().find('?');
-            if (pos == std::string::npos)
-                return request.get_uri();
-            return request.get_uri().substr(0, pos);
-        }
 
         std::string get_version() const
         {
             return request.get_version();
         }
 
-        std::string get_header(const std::string &name) const
+        std::vector<std::string> get_header(const std::string &name) const
         {
             return request.get_header(name);
         }
@@ -80,32 +80,33 @@ namespace hamza::web
             return request.get_body();
         }
 
-        std::string get_content_type() const
+        std::vector<std::string> get_content_type() const
         {
             return request.get_header(http::headers::CONTENT_TYPE);
         }
+        // std::vector<std::pair<std::string, std::string>> get_cookies() const
+        // {
+        //     // parse cookies
+        //     std::vector<std::string> cookie_header = request.get_header(http::headers::COOKIE);
+        //     std::vector<std::pair<std::string, std::string>> cookies;
+        //     if (!cookie_header.empty())
+        //     {
+        //         for (const auto &cookie : cookie_header)
+        //         {
+        //             //     Cookie: name1=value1; name2=value2; name3=value3
+        //             //     Cookie: name1=value1
+        //             size_t start = 0;
+        //             size_t end = 0;
+        //         }
+        //     }
+        //     return cookies;
+        // }
+
         std::vector<std::string> get_cookies() const
         {
-            // parse cookies
-            std::string cookie_header = request.get_header(http::headers::COOKIE);
-            std::vector<std::string> cookies;
-
-            if (!cookie_header.empty())
-            {
-                size_t start = 0;
-                size_t end = 0;
-                while ((end = cookie_header.find(';', start)) != std::string::npos)
-                {
-                    cookies.push_back(trim(cookie_header.substr(start, end - start)));
-                    start = end + 1;
-                }
-                cookies.push_back(trim(cookie_header.substr(start)));
-            }
-
-            return cookies;
+            return request.get_header(http::headers::COOKIE);
         }
-
-        std::string get_authorization() const
+        std::vector<std::string> get_authorization() const
         {
             return request.get_header(http::headers::AUTHORIZATION);
         }

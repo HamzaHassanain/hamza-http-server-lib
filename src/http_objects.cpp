@@ -4,7 +4,8 @@ namespace hamza::http
 {
 
     http_request::http_request(const std::string &method, const std::string &uri, const std::string &version,
-                               const std::map<std::string, std::string> &headers, const std::string &body,
+                               const std::multimap<std::string, std::string> &headers,
+                               const std::string &body,
                                std::shared_ptr<hamza::socket> client_socket)
         : method(method), uri(uri), version(version), headers(headers), body(body), client_socket(client_socket) {}
 
@@ -37,14 +38,15 @@ namespace hamza::http
         return version;
     }
 
-    std::string http_request::get_header(const std::string &name) const
+    std::vector<std::string> http_request::get_header(const std::string &name) const
     {
-        auto it = headers.find(name);
-        if (it != headers.end())
+        std::vector<std::string> values;
+        auto range = headers.equal_range(name);
+        for (auto it = range.first; it != range.second; ++it)
         {
-            return it->second;
+            values.push_back(it->second);
         }
-        return "";
+        return values;
     }
 
     std::vector<std::pair<std::string, std::string>> http_request::get_headers() const
@@ -64,7 +66,7 @@ namespace hamza::http
 
     // ========== http_response Implementation ==========
 
-    http_response::http_response(const std::string &version, const std::map<std::string, std::string> &headers,
+    http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
                                  std::shared_ptr<hamza::socket> client_socket)
         : version(version), headers(headers), client_socket(client_socket) {}
 
@@ -78,14 +80,7 @@ namespace hamza::http
         {
             return false;
         }
-        if (version != hamza::http::versions::HTTP_1_1 && version != hamza::http::versions::HTTP_2_0)
-        {
-            return false;
-        }
-        if (headers.find(hamza::http::headers::CONTENT_TYPE) == headers.end())
-        {
-            return false;
-        }
+
         return true;
     }
 
@@ -126,12 +121,12 @@ namespace hamza::http
 
     void http_response::add_trailer(const std::string &name, const std::string &value)
     {
-        trailers[name] = value;
+        trailers.insert({name, value});
     }
 
     void http_response::add_header(const std::string &name, const std::string &value)
     {
-        headers[name] = value;
+        headers.insert({name, value});
     }
 
     std::string http_response::get_body() const
@@ -154,24 +149,26 @@ namespace hamza::http
         return status_code;
     }
 
-    std::string http_response::get_header(const std::string &name) const
+    std::vector<std::string> http_response::get_header(const std::string &name) const
     {
-        auto it = headers.find(name);
-        if (it != headers.end())
+        std::vector<std::string> values;
+        auto range = headers.equal_range(name);
+        for (auto it = range.first; it != range.second; ++it)
         {
-            return it->second;
+            values.push_back(it->second);
         }
-        return "";
+        return values;
     }
 
-    std::string http_response::get_trailer(const std::string &name) const
+    std::vector<std::string> http_response::get_trailer(const std::string &name) const
     {
-        auto it = trailers.find(name);
-        if (it != trailers.end())
+        std::vector<std::string> values;
+        auto range = trailers.equal_range(name);
+        for (auto it = range.first; it != range.second; ++it)
         {
-            return it->second;
+            values.push_back(it->second);
         }
-        return "";
+        return values;
     }
 
     void http_response::end()
@@ -183,9 +180,7 @@ namespace hamza::http
         }
         else
         {
-            std::string message = "\nMake sure that the following headers are set and correct: ";
-            message += hamza::http::headers::CONTENT_LENGTH + ", " + hamza::http::headers::CONTENT_TYPE + ", and the status code is between 100 and 599.\n";
-            throw std::runtime_error(message);
+            throw std::runtime_error("Invalid HTTP response or client connection may be already closed");
         }
     }
 

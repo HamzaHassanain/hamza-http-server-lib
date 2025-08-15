@@ -25,7 +25,7 @@ namespace hamza::http
         std::ostringstream body_stream;
 
         std::string method, uri, version, body;
-        std::map<std::string, std::string> headers;
+        std::multimap<std::string, std::string> headers;
         std::string line;
 
         // Parse request line
@@ -70,7 +70,7 @@ namespace hamza::http
                     header_value = header_value.substr(0, end + 1);
                 }
 
-                headers[header_name] = header_value;
+                headers.emplace(header_name, header_value);
             }
         }
 
