@@ -22,6 +22,7 @@ file(GLOB WEB_SRC_FILES web/src/*.cpp)
 set(CMAKE_CXX_STANDARD 17)
 # Add include directory for header.hpp
 include_directories(${CMAKE_SOURCE_DIR}/includes)
+include_directories(${CMAKE_SOURCE_DIR}/web)
 # include_directories(${CMAKE_SOURCE_DIR}/lib)
 
 add_executable(  socket_example app.cpp ${SRC_FILES} ${WEB_SRC_FILES} )

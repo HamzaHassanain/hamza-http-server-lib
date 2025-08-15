@@ -22,6 +22,14 @@ namespace hamza::http
                      std::shared_ptr<hamza::socket> client_socket);
 
     public:
+        // disable copy, and move assignment
+        http_request(const http_request &) = delete;
+        http_request &operator=(const http_request &) = delete;
+        http_request &operator=(http_request &&) = delete;
+
+        // allow move
+        http_request(http_request &&);
+
         friend class http_server;
 
         void destroy(bool Isure);
@@ -50,6 +58,14 @@ namespace hamza::http
 
     public:
         friend class http_server;
+
+        // disable copy, and move assignment
+        http_response(const http_response &) = delete;
+        http_response &operator=(const http_response &) = delete;
+        http_response &operator=(http_response &&) = delete;
+
+        // only move
+        http_response(http_response &&);
 
         std::string to_string() const;
         void set_body(const std::string &body);

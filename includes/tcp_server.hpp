@@ -29,7 +29,13 @@ namespace hamza
         void check_for_activity();
 
     public:
-        tcp_server(const hamza::socket_address &addr);
+        explicit tcp_server(const hamza::socket_address &addr);
+        // disable copy and move
+        tcp_server(const tcp_server &) = delete;
+        tcp_server &operator=(const tcp_server &) = delete;
+        tcp_server(tcp_server &&) = delete;
+        tcp_server &operator=(tcp_server &&) = delete;
+
         void run();
 
     protected:
@@ -39,7 +45,7 @@ namespace hamza
         virtual void on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr) = 0;
         virtual void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr) = 0;
         virtual void on_listen_success() = 0;
-        virtual void on_exception(std::unique_ptr<general_socket_exception> e) = 0;
+        virtual void on_exception(std::shared_ptr<hamza::general_socket_exception> e) = 0;
 
     private:
         void start_listening();

@@ -151,7 +151,7 @@ namespace hamza
         {
             std::string error_message = "Error handling client activity: " + std::string(e.what());
             error_message += " for client: " + client_ip + ":" + client_port + "\nRemove any misbehaving clients is recommended.";
-            this->on_exception(std::make_unique<client_activity_exception>(error_message));
+            this->on_exception(std::make_shared<client_activity_exception>(error_message));
             // remove_client(sock_ptr);
         }
     }

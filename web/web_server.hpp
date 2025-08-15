@@ -3,12 +3,14 @@
 #include <bits/stdc++.h>
 #include <http_server.hpp>
 #include <http_objects.hpp>
+#include <web_types.hpp>
+#include <web_methods.hpp>
+
+#include <web_request.hpp>
+#include <web_response.hpp>
 
 namespace hamza::web
 {
-    using request_callback_t = std::function<void(hamza::http::http_request &, hamza::http::http_response &)>;
-    using listen_success_callback_t = std::function<void()>;
-    using error_callback_t = std::function<void(std::unique_ptr<hamza::general_socket_exception>)>;
 
     class web_server
     {
@@ -16,20 +18,18 @@ namespace hamza::web
         std::string host;
         uint16_t port;
 
-        request_callback_t request_callback = [](hamza::http::http_request &request, hamza::http::http_response &response) -> void
+        request_callback_t request_callback = [this](hamza::http::http_request &request, hamza::http::http_response &response) -> void
         {
-            response.set_status(200, "OK");
-            response.add_header("Content-Type", "text/html");
+            web_request web_req(std::move(request));
+            web_response web_res(std::move(response));
 
-            std::ifstream file("html/index.cml");
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            std::string index = buffer.str();
+            auto web_res_ptr = std::make_shared<web_response>(std::move(web_res));
+            auto web_req_ptr = std::make_shared<web_request>(std::move(web_req));
 
-            std::cout << "Serving index.cml: " << index << std::endl;
+            auto path = web_req_ptr->get_path();
+            auto method = web_req_ptr->get_method();
 
-            response.set_body(index);
-            response.end();
+            web_res_ptr->end();
         };
 
         listen_success_callback_t listen_success_callback = [this]() -> void
@@ -37,7 +37,7 @@ namespace hamza::web
             std::cout << "Server is listening at " << host << ":" << port << std::endl;
         };
 
-        error_callback_t error_callback = [this](std::unique_ptr<hamza::general_socket_exception> e) -> void
+        error_callback_t error_callback = [](std::shared_ptr<hamza::general_socket_exception> e) -> void
         {
             std::cerr << "Error occurred: " << e->type() << std::endl;
             std::cerr << "Error occurred: " << e->what() << std::endl;
@@ -45,6 +45,7 @@ namespace hamza::web
 
         void set_default_callbacks()
         {
+            // std::cout << "Setting default callbacks..." << std::endl;
             server.set_request_callback(request_callback);
             server.set_listen_success_callback(listen_success_callback);
             server.set_error_callback(error_callback);

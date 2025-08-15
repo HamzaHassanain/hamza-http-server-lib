@@ -114,7 +114,7 @@ namespace hamza::http
             listen_success_callback();
     }
 
-    void http_server::on_exception(std::unique_ptr<hamza::general_socket_exception> e)
+    void http_server::on_exception(std::shared_ptr<hamza::general_socket_exception> e)
     {
 
         if (error_callback)
@@ -152,7 +152,7 @@ namespace hamza::http
         listen_success_callback = std::move(callback);
     }
 
-    void http_server::set_error_callback(std::function<void(std::unique_ptr<hamza::general_socket_exception>)> callback)
+    void http_server::set_error_callback(std::function<void(std::shared_ptr<hamza::general_socket_exception>)> callback)
     {
         error_callback = std::move(callback);
     }
