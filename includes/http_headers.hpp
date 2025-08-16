@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace hamza::http
+namespace hamza_http
 {
 
     namespace headers

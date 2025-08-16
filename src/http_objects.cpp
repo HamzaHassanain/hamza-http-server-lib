@@ -1,6 +1,6 @@
 #include <http_objects.hpp>
 
-namespace hamza::http
+namespace hamza_http
 {
 
     http_request::http_request(const std::string &method, const std::string &uri, const std::string &version,

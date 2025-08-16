@@ -7,7 +7,7 @@
 #include <string>
 #include <http_objects.hpp>
 
-namespace hamza::http
+namespace hamza_http
 {
     class http_server : public hamza::tcp_server
     {

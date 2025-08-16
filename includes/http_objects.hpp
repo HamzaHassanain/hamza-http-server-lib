@@ -4,7 +4,7 @@
 #include <socket.hpp>
 #include <http_headers.hpp>
 
-namespace hamza::http
+namespace hamza_http
 {
     class http_request
     {

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace hamza::http
+namespace hamza_http
 {
     http_server::http_server(const hamza::socket_address &addr) : hamza::tcp_server(addr) {}
 
