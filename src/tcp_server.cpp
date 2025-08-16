@@ -77,18 +77,16 @@ namespace hamza
                 handle_new_connection();
             }
 
-            for (auto &sock_ptr : clients)
-            {
-                if (sock_ptr == nullptr || !sock_ptr->is_connected())
-                {
-                    throw std::runtime_error("Invalid socket pointer in clients container.");
-                }
-
-                if (fd_select_server.is_fd_set(sock_ptr->get_file_descriptor()))
-                {
-                    handle_client_activity(sock_ptr);
-                }
-            }
+            clients.for_each([this](std::shared_ptr<hamza::socket> sock_ptr)
+                             {
+                                 if (!sock_ptr || !sock_ptr->is_connected())
+                                 {
+                                     return;
+                                 }
+                                 if (fd_select_server.is_fd_set(sock_ptr->get_file_descriptor()))
+                                 {
+                                     handle_client_activity(sock_ptr);
+                                 } });
         }
         catch (const std::exception &e)
         {

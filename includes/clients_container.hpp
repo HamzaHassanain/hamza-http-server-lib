@@ -2,8 +2,8 @@
 
 #include <socket_address.hpp>
 #include <socket.hpp>
-#include <thread>
-#include <set>
+#include <vector>
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -15,7 +15,7 @@ namespace hamza
     private:
         std::vector<std::shared_ptr<hamza::socket>> sockets;
         using callback = std::function<void(std::shared_ptr<hamza::socket>)>;
-        std::mutex mtx;
+        mutable std::mutex mtx;
 
     public:
         void insert(std::shared_ptr<hamza::socket> sock)
@@ -30,27 +30,34 @@ namespace hamza
             auto it = sockets.begin();
             for (; it != sockets.end(); ++it)
             {
+                if (!(*it))
+                    continue;
                 if ((*it)->get_file_descriptor() == sock->get_file_descriptor())
                 {
                     sockets.erase(it);
                     break;
                 }
             }
-
         }
 
         bool contains(std::shared_ptr<hamza::socket> sock) const
         {
+            std::lock_guard<std::mutex> lock(mtx);
             return std::find(sockets.begin(), sockets.end(), sock) != sockets.end();
         }
+
         size_t size() const
         {
+            std::lock_guard<std::mutex> lock(mtx);
             return sockets.size();
         }
+
         void clear()
         {
+            std::lock_guard<std::mutex> lock(mtx);
             sockets.clear();
         }
+
         void cleanup()
         {
             std::lock_guard<std::mutex> lock(mtx);
@@ -60,26 +67,25 @@ namespace hamza
                                              return !sock || !sock->is_connected();
                                          }),
                           sockets.end());
+        }
 
-            for (auto x : sockets)
+        void for_each(std::function<void(std::shared_ptr<hamza::socket>)> func) const
+        {
+            std::vector<std::shared_ptr<hamza::socket>> copy;
             {
-                if (x == nullptr || !x->is_connected())
-                {
-                    throw std::runtime_error("Invalid socket pointer in clients container.");
-                }
+                std::lock_guard<std::mutex> lock(mtx);
+                copy = sockets; // Copy under lock
             }
-        }
-        std::vector<std::shared_ptr<hamza::socket>>::const_iterator begin() const
-        {
-            return sockets.begin();
-        }
-        std::vector<std::shared_ptr<hamza::socket>>::const_iterator end() const
-        {
-            return sockets.end();
+            for (const auto &sock : copy)
+            {
+                if (sock)
+                    func(sock);
+            }
         }
 
         int max() const
         {
+            std::lock_guard<std::mutex> lock(mtx);
             if (sockets.empty())
             {
                 return -1;
@@ -87,9 +93,17 @@ namespace hamza
             int max_fd = -1;
             for (const auto &sock : sockets)
             {
+                if (!sock)
+                    continue;
                 max_fd = std::max(max_fd, sock->get_file_descriptor().get());
             }
             return max_fd;
         }
+
+        bool empty() const
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            return sockets.empty();
+        }
     };
-};
+}

@@ -24,12 +24,14 @@ namespace hamza::web
 
                 int pos = 0;
                 int rhs_pos = 0;
+                std::cout << "path: " << path << " rhs: " << rhs << std::endl;
                 while (pos < path.length() && rhs_pos < rhs.length())
                 {
                     if (path[pos] == ':')
                     {
                         pos = path.find('/', pos);
                         rhs_pos = rhs.find('/', rhs_pos);
+                        std::cout << pos << " " << rhs_pos << std::endl;
                         if (pos == std::string::npos || rhs_pos == std::string::npos)
                             return true;
                     }
@@ -40,6 +42,7 @@ namespace hamza::web
                     ++pos;
                     ++rhs_pos;
                 }
+                std::cout << "Path matched successfully!" << std::endl;
                 return pos == path.length() && rhs_pos == rhs.length();
             }
             catch (const std::exception &e)
@@ -58,6 +61,12 @@ namespace hamza::web
                 throw std::invalid_argument("At least one handler must be provided");
             }
         }
+
+        web_route(const web_route &) = delete;
+        web_route &operator=(const web_route &) = delete;
+
+        web_route(web_route &&) = default;
+        web_route &operator=(web_route &&) = default;
 
         std::string get_path() const
         {

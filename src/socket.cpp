@@ -197,8 +197,8 @@ namespace hamza
         }
 
         data_buffer received_data;
-        const int MAX_BUFFER_SIZE = 1024; // 64KB buffer for TCP
-        char buffer[MAX_BUFFER_SIZE];     // 64KB buffer for TCP
+        const int MAX_BUFFER_SIZE = 1024;
+        char buffer[MAX_BUFFER_SIZE];
         int itrs = 0;
         int total_received = 0;
         while (true)

@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 #include <http_server.hpp>
 #include <http_objects.hpp>
+
 #include <web/web_types.hpp>
 #include <web/web_methods.hpp>
 #include <web/web_request.hpp>
@@ -43,13 +44,22 @@ namespace hamza::web
 
             auto web_res_ptr = std::make_shared<web_response>(std::move(web_res));
             auto web_req_ptr = std::make_shared<web_request>(std::move(web_req));
-
-            auto path = web_req_ptr->get_path();
-            auto method = web_req_ptr->get_method();
-
-            router.handle_request(web_req_ptr, web_res_ptr);
-
-            web_res_ptr->end();
+            try
+            {
+                std::thread([this, web_req_ptr, web_res_ptr]() mutable
+                            {
+                    
+                    router.handle_request(web_req_ptr, web_res_ptr);
+                    web_res_ptr->end(); })
+                    .detach();
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error handling request: " << e.what() << std::endl;
+                web_res_ptr->set_status(500, "Internal Server Error");
+                web_res_ptr->text("500 Internal Server Error");
+                web_res_ptr->end();
+            }
         };
 
         web_listen_success_callback_t listen_success_callback = [this]() -> void
@@ -78,9 +88,9 @@ namespace hamza::web
             set_default_callbacks();
         }
 
-        void register_route(const web_route &route)
+        void register_router(web_router &&router)
         {
-            router.register_route(route);
+            this->router = std::move(router);
         }
 
         void listen(web_listen_success_callback_t callback = nullptr,

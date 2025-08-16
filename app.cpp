@@ -40,12 +40,15 @@ int main()
 {
     try
     {
-        hamza::web::web_route index_route("/", hamza::web::GET, {auth, index_handler});
-        hamza::web::web_route home_route("/home/:id", hamza::web::GET, {home_handler});
-
         hamza::web::web_server server("127.0.0.1", 12349);
-        server.register_route(index_route);
-        server.register_route(home_route);
+
+        hamza::web::web_route index_route("/", hamza::web::GET, {auth, index_handler});
+        hamza::web::web_route home_route("/home/:id/xxx/:param", hamza::web::GET, {home_handler});
+        hamza::web::web_router router;
+
+        router.register_route(std::move(home_route));
+        router.register_route(std::move(index_route));
+        server.register_router(std::move(router));
 
         server.listen(listen_success_callback);
     }

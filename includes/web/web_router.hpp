@@ -21,6 +21,7 @@ namespace hamza::web
 
         void handle_request(std::shared_ptr<web_request> request, std::shared_ptr<web_response> response)
         {
+
             try
             {
                 for (const auto &route : routes)
@@ -60,9 +61,19 @@ namespace hamza::web
         friend class web_server;
         web_router() = default;
 
-        void register_route(const web_route &route)
+        web_router(const web_router &) = delete;
+        web_router &operator=(const web_router &) = delete;
+
+        web_router(web_router &&) = default;
+        web_router &operator=(web_router &&) = default;
+
+        void register_route(web_route &&route)
         {
-            routes.push_back(route);
+            if (route.get_path().empty())
+            {
+                throw std::invalid_argument("Route path cannot be empty");
+            }
+            routes.push_back(std::move(route));
         }
 
         void set_default_handler(const web_request_handler_t &handler)
