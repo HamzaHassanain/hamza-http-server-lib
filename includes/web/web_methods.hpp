@@ -1,14 +1,13 @@
 #pragma once
 #include <string>
 
-namespace hamza::web
+namespace hamza::web::methods
 {
-    std::string GET = "GET";
-    std::string POST = "POST";
-    std::string PUT = "PUT";
-    std::string DELETE = "DELETE";
-    std::string PATCH = "PATCH";
-    std::string HEAD = "HEAD";
-    std::string OPTIONS = "OPTIONS";
-
+    extern const std::string GET;
+    extern const std::string POST;
+    extern const std::string PUT;
+    extern const std::string DELETE;
+    extern const std::string PATCH;
+    extern const std::string HEAD;
+    extern const std::string OPTIONS;
 }

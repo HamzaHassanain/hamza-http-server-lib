@@ -16,18 +16,37 @@ hamza::web::web_error_callback_t error_callback = [](std::shared_ptr<hamza::gene
 
 auto auth = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
-    // throw hamza::web::web_unauthorized_exception("Unauthorized access");
+    res->add_cookie("session_id", "123456");
     return hamza::web::CONTINUE;
 };
 
 auto index_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
-    // simulate processing, that takes some time
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-    res->set_status(200, "OK");
-    res->html("<h1>Welcome to the Index Page</h1>");
-    res->end();
-    return hamza::web::EXIT;
+    try
+    {
+
+        std::ifstream file("html/index.html");
+        if (file)
+        {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            res->html(buffer.str());
+        }
+        else
+        {
+            res->set_status(404, "Not Found");
+            res->end();
+        }
+
+        return hamza::web::EXIT;
+    }
+    catch (const std::exception &e)
+    {
+        res->set_status(500, "Internal Server Error");
+        res->text("Error: " + std::string(e.what()));
+        res->end();
+        return hamza::web::EXIT;
+    }
 };
 auto home_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
@@ -36,18 +55,31 @@ auto home_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared
     return hamza::web::EXIT;
 };
 
+auto create_connection_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
+{
+    // Handle the creation of a new socket connection
+    std::cout << "GOT BODY: " << req->get_body() << std::endl;
+    res->set_status(201, "Created");
+    res->end();
+    return hamza::web::EXIT;
+};
+
 int main()
 {
     try
     {
-        hamza::web::web_server server("127.0.0.1", 12349);
+        hamza::web::web_server server("0.0.0.0", 8080);
 
-        hamza::web::web_route index_route("/", hamza::web::GET, {auth, index_handler});
-        hamza::web::web_route home_route("/home/:id/xxx/:param", hamza::web::GET, {home_handler});
+        hamza::web::web_route index_route("/", hamza::web::methods::GET, {auth, index_handler});
+        hamza::web::web_route create_connection_route("/create-connection", hamza::web::methods::POST, { create_connection_handler});
+        hamza::web::web_route home_route("/home/:id/xxx/:param", hamza::web::methods::GET, {home_handler});
         hamza::web::web_router router;
 
+        server.register_static("static");
         router.register_route(std::move(home_route));
         router.register_route(std::move(index_route));
+        router.register_route(std::move(create_connection_route));
+
         server.register_router(std::move(router));
 
         server.listen(listen_success_callback);
