@@ -4,7 +4,7 @@
 #include <http_objects.hpp>
 #include <http_headers.hpp>
 #include <web/web_server.hpp>
-
+#include <web/web_exceptions.hpp>
 namespace hamza::web
 {
     class web_request
@@ -13,9 +13,17 @@ namespace hamza::web
 
         std::string trim(const std::string &str) const
         {
-            size_t first = str.find_first_not_of(" \t\n\r");
-            size_t last = str.find_last_not_of(" \t\n\r");
-            return (first == std::string::npos || last == std::string::npos) ? "" : str.substr(first, last - first + 1);
+            try
+            {
+
+                size_t first = str.find_first_not_of(" \t\n\r");
+                size_t last = str.find_last_not_of(" \t\n\r");
+                return (first == std::string::npos || last == std::string::npos) ? "" : str.substr(first, last - first + 1);
+            }
+            catch (const std::exception &e)
+            {
+                throw web_general_exception("Error trimming string: " + std::string(e.what()));
+            }
         }
 
     public:
@@ -23,17 +31,49 @@ namespace hamza::web
             : request(std::move(req))
         {
         }
+        std::vector<std::pair<std::string, std::string>> get_path_params() const
+        {
+            std::vector<std::pair<std::string, std::string>> path_params;
 
+            try
+            {
+                // /users/:id
+                std::string path = request.get_uri();
+
+                size_t start = 0;
+                while ((start = path.find(':', start)) != std::string::npos)
+                {
+                    size_t end = path.find('/', start);
+                    std::string param = path.substr(start + 1, end - start - 1);
+                    path_params.emplace_back(param, "");
+                    start = end + 1;
+                }
+
+                return path_params;
+            }
+            catch (const std::exception &e)
+            {
+                throw web_general_exception("Error getting params: " + std::string(e.what()));
+            }
+        }
         std::string get_method() const
         {
             return request.get_method();
         }
         std::string get_path() const
         {
-            size_t pos = request.get_uri().find('?');
-            if (pos == std::string::npos)
-                return request.get_uri();
-            return request.get_uri().substr(0, pos);
+            try
+            {
+
+                size_t pos = request.get_uri().find('?');
+                if (pos == std::string::npos)
+                    return request.get_uri();
+                return request.get_uri().substr(0, pos);
+            }
+            catch (const std::exception &e)
+            {
+                throw web_general_exception("Error getting path: " + std::string(e.what()));
+            }
         }
 
         std::string get_uri() const
@@ -42,22 +82,30 @@ namespace hamza::web
         }
         std::vector<std::pair<std::string, std::string>> get_query_parameter(const std::string &name) const
         {
-            std::vector<std::pair<std::string, std::string>> result;
-            // assuming URI is in the format "/path?key=value&key2=value2"
-            size_t pos = request.get_uri().find('?');
-            if (pos == std::string::npos)
-                return result;
-
-            std::string query = request.get_uri().substr(pos + 1);
-            size_t start = 0;
-            while ((start = query.find(name + '=', start)) != std::string::npos)
+            try
             {
-                start += name.length() + 1;
-                size_t end = query.find('&', start);
-                result.emplace_back(name, query.substr(start, end - start));
-                start = end + 1;
+
+                std::vector<std::pair<std::string, std::string>> result;
+                // assuming URI is in the format "/path?key=value&key2=value2"
+                size_t pos = request.get_uri().find('?');
+                if (pos == std::string::npos)
+                    return result;
+
+                std::string query = request.get_uri().substr(pos + 1);
+                size_t start = 0;
+                while ((start = query.find(name + '=', start)) != std::string::npos)
+                {
+                    start += name.length() + 1;
+                    size_t end = query.find('&', start);
+                    result.emplace_back(name, query.substr(start, end - start));
+                    start = end + 1;
+                }
+                return result;
             }
-            return result;
+            catch (const std::exception &e)
+            {
+                throw web_general_exception("Error parsing query parameters: " + std::string(e.what()));
+            }
         }
 
         std::string get_version() const

@@ -58,6 +58,15 @@ namespace hamza::web
             }
             response.add_header("Set-Cookie", name + "=" + value);
         }
+        void set_content_type(const std::string &content_type)
+        {
+            response.add_header(http::headers::CONTENT_TYPE, content_type);
+        }
+
+        void set_body(const std::string &body)
+        {
+            response.set_body(body);
+        }
 
         void end()
         {

@@ -1,8 +1,10 @@
+#pragma once
 
 #include <string>
 #include <web/web_types.hpp>
 #include <web/web_route.hpp>
 #include <web/web_server.hpp>
+#include <web/web_exceptions.hpp>
 namespace hamza::web
 {
     class web_router
@@ -19,34 +21,49 @@ namespace hamza::web
 
         void handle_request(std::shared_ptr<web_request> request, std::shared_ptr<web_response> response)
         {
-            for (const auto &route : routes)
+            try
             {
-                if (route.match(request->get_path(), request->get_method()))
+                for (const auto &route : routes)
                 {
-                    auto &handlers = route.handlers;
-                    for (const auto &handler : handlers)
+
+                    if (route.match(request->get_path(), request->get_method()))
                     {
-                        if (handler(request, response) == EXIT)
+                        auto &handlers = route.handlers;
+                        for (const auto &handler : handlers)
                         {
-                            response->end();
-                            return;
+                            auto resp = handler(request, response);
+                            if (resp == EXIT)
+                            {
+                                response->end();
+                                return;
+                            }
                         }
+                        return;
                     }
+
+                    default_handler(request, response);
+                    response->end();
                     return;
                 }
             }
-
-            default_handler(request, response);
-            response->end();
-            return;
+            catch (const web_general_exception &e)
+            {
+                std::cerr << "Error handling request: " << e.what() << std::endl;
+                response->set_status(e.get_status_code(), e.get_status_message());
+                response->text(e.what());
+                response->end();
+                return;
+            }
         }
 
     public:
         friend class web_server;
         web_router() = default;
 
-
-        void register_route
+        void register_route(const web_route &route)
+        {
+            routes.push_back(route);
+        }
 
         void set_default_handler(const web_request_handler_t &handler)
         {

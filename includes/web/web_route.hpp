@@ -3,6 +3,7 @@
 #include <vector>
 #include <web/web_types.hpp>
 #include <web/web_router.hpp>
+#include <web/web_exceptions.hpp>
 namespace hamza::web
 {
 
@@ -13,34 +14,38 @@ namespace hamza::web
         std::vector<web_request_handler_t> handlers;
         bool match_path(const std::string &rhs) const
         {
-            // if path is path/:id/something, then rhs = path/123/something should match,
-
-            if (path == rhs)
+            try
             {
-                return true;
-            }
 
-            // Check for dynamic segments
-            size_t pos = 0;
-            size_t rhs_pos = 0;
-            while (pos < path.length() && rhs_pos < rhs.length())
-            {
-                if (path[pos] == ':')
+                if (path == rhs)
                 {
-                    // Skip dynamic segment in both paths
-                    pos = path.find('/', pos);
-                    rhs_pos = rhs.find('/', rhs_pos);
-                    if (pos == std::string::npos || rhs_pos == std::string::npos)
-                        break;
+                    return true;
                 }
-                else if (path[pos] != rhs[rhs_pos])
+
+                int pos = 0;
+                int rhs_pos = 0;
+                while (pos < path.length() && rhs_pos < rhs.length())
                 {
-                    return false;
+                    if (path[pos] == ':')
+                    {
+                        pos = path.find('/', pos);
+                        rhs_pos = rhs.find('/', rhs_pos);
+                        if (pos == std::string::npos || rhs_pos == std::string::npos)
+                            return true;
+                    }
+                    else if (path[pos] != rhs[rhs_pos])
+                    {
+                        return false;
+                    }
+                    ++pos;
+                    ++rhs_pos;
                 }
-                ++pos;
-                ++rhs_pos;
+                return pos == path.length() && rhs_pos == rhs.length();
             }
-            return pos == path.length() && rhs_pos == rhs.length();
+            catch (const std::exception &e)
+            {
+                throw web_general_exception("Error matching path: " + std::string(e.what()));
+            }
         }
 
     public:

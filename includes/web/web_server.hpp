@@ -8,8 +8,26 @@
 #include <web/web_request.hpp>
 #include <web/web_response.hpp>
 #include <web/web_router.hpp>
+#include <web/web_exceptions.hpp>
 namespace hamza::web
 {
+    using ret = std::function<void(std::shared_ptr<hamza::general_socket_exception>)>;
+    using param = std::function<void(std::shared_ptr<hamza::web::web_general_exception>)>;
+
+    ret custom_wrap(param &callback)
+    {
+        return [callback = std::move(callback)](std::shared_ptr<hamza::general_socket_exception> e) -> void
+        {
+            if (auto web_exc = std::dynamic_pointer_cast<hamza::web::web_general_exception>(e))
+            {
+                callback(web_exc);
+            }
+            else
+            {
+                callback(std::make_shared<hamza::web::web_general_exception>(e->what()));
+            }
+        };
+    }
 
     class web_server
     {
@@ -29,6 +47,8 @@ namespace hamza::web
             auto path = web_req_ptr->get_path();
             auto method = web_req_ptr->get_method();
 
+            router.handle_request(web_req_ptr, web_res_ptr);
+
             web_res_ptr->end();
         };
 
@@ -37,8 +57,9 @@ namespace hamza::web
             std::cout << "Server is listening at " << host << ":" << port << std::endl;
         };
 
-        web_error_callback_t error_callback = [](std::shared_ptr<hamza::general_socket_exception> e) -> void
+        web_error_callback_t error_callback = [](std::shared_ptr<web_general_exception> e) -> void
         {
+            std::cerr << "Error occurred: " << e->get_status_code() << ": " << e->get_status_message() << std::endl;
             std::cerr << "Error occurred: " << e->type() << std::endl;
             std::cerr << "Error occurred: " << e->what() << std::endl;
         };
@@ -47,7 +68,7 @@ namespace hamza::web
         {
             server.set_request_callback(request_callback);
             server.set_listen_success_callback(listen_success_callback);
-            server.set_error_callback(error_callback);
+            server.set_error_callback(custom_wrap(error_callback));
         }
 
     public:
@@ -57,15 +78,18 @@ namespace hamza::web
             set_default_callbacks();
         }
 
-        void 
+        void register_route(const web_route &route)
+        {
+            router.register_route(route);
+        }
 
-        void listen(const web_listen_success_callback_t &callback = nullptr,
-                    const web_error_callback_t &error_callback = nullptr)
+        void listen(web_listen_success_callback_t callback = nullptr,
+                    web_error_callback_t error_callback = nullptr)
         {
             if (callback)
                 server.set_listen_success_callback(callback);
             if (error_callback)
-                server.set_error_callback(error_callback);
+                server.set_error_callback(custom_wrap(error_callback));
 
             server.run();
         }
