@@ -1,30 +1,55 @@
 #include <bits/stdc++.h>
+#include <web/web_types.hpp>
 #include <web/web_server.hpp>
 #include <web/web_route.hpp>
 #include <web/web_router.hpp>
 #include <web/web_exceptions.hpp>
+#include <web/web_helpers.hpp>
+using namespace hamza::web;
+
+class CR : public hamza::web::web_request
+{
+public:
+    std::map<std::string, std::string> form_data;
+    CR(hamza::http::http_request &&req)
+        : web_request(std::move(req)) {}
+};
+
+using req_handler = web_request_handler_t<CR, web_response>;
+template <typename RequestType = CR, typename ResponseType = web_response>
+class crout : public hamza::web::web_route<RequestType, ResponseType>
+{
+public:
+    crout(const std::string &path, const std::string &method, std::vector<req_handler> handlers)
+        : web_route<RequestType, ResponseType>(path, method, handlers) {}
+
+    bool match(const std::string &path, const std::string &method) const override
+    {
+        std::cout << "Custom match logic for path: " << path << " and method: " << method << std::endl;
+        return web_route<RequestType, ResponseType>::match(path, method);
+    }
+
+    ~crout()
+    {
+        std::cout << "Destroying crout: " << this->get_path() << std::endl;
+    }
+};
+
 hamza::web::web_listen_success_callback_t listen_success_callback = []() -> void
 {
-    std::cout << "Server is listening ......... " << std::endl;
+    std::cout << "Server is listening on port 8080" << std::endl;
 };
 
-hamza::web::web_error_callback_t error_callback = [](std::shared_ptr<hamza::general_socket_exception> e) -> void
-{
-    std::cerr << "Error occurred: " << e->type() << std::endl;
-    std::cerr << "Error occurred: " << e->what() << std::endl;
-};
-
-auto auth = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
+req_handler auth = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
     res->add_cookie("session_id", "123456");
     return hamza::web::CONTINUE;
 };
 
-auto index_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
+req_handler index_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
     try
     {
-
         std::ifstream file("html/index.html");
         if (file)
         {
@@ -34,8 +59,7 @@ auto index_handler = [](std::shared_ptr<hamza::web::web_request> req, std::share
         }
         else
         {
-            res->set_status(404, "Not Found");
-            res->end();
+            throw hamza::web::web_internal_server_error_exception("Failed to open index.html");
         }
 
         return hamza::web::EXIT;
@@ -48,39 +72,52 @@ auto index_handler = [](std::shared_ptr<hamza::web::web_request> req, std::share
         return hamza::web::EXIT;
     }
 };
-auto home_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
-{
-    res->html("<h1>Welcome to the Home Page</h1>");
-    res->end();
-    return hamza::web::EXIT;
-};
 
-auto create_connection_handler = [](std::shared_ptr<hamza::web::web_request> req, std::shared_ptr<hamza::web::web_response> res) -> int
+req_handler form_parser = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
-    // Handle the creation of a new socket connection
-    std::cout << "GOT BODY: " << req->get_body() << std::endl;
+    try
+    {
+        req->form_data = helpers::parse_form_data(req->get_body());
+
+        return hamza::web::CONTINUE;
+    }
+    catch (const std::exception &e)
+    {
+        res->set_status(400, "Bad Request");
+        res->text("Error parsing form data: " + std::string(e.what()));
+        res->end();
+        return hamza::web::EXIT;
+    }
+};
+req_handler create_connection_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
+{
+    std::cout << "Parsed Body: \n";
+    for (const auto &[key, value] : req->form_data)
+    {
+        std::cout << "  " << key << ": " << value << std::endl;
+    }
     res->set_status(201, "Created");
     res->end();
     return hamza::web::EXIT;
 };
-
+using ptr_route = std::shared_ptr<web_route<CR>>;
+using ptr_router = std::shared_ptr<web_router<CR>>;
 int main()
 {
     try
     {
-        hamza::web::web_server server("0.0.0.0", 8080);
+        web_server<CR> server("0.0.0.0", 8080);
 
-        hamza::web::web_route index_route("/", hamza::web::methods::GET, {auth, index_handler});
-        hamza::web::web_route create_connection_route("/create-connection", hamza::web::methods::POST, { create_connection_handler});
-        hamza::web::web_route home_route("/home/:id/xxx/:param", hamza::web::methods::GET, {home_handler});
-        hamza::web::web_router router;
+        auto index_route = ptr_route(new crout<CR>("/", methods::GET, {auth, index_handler}));
+        auto create_connection_route = ptr_route(new crout<CR>("/create_connection", methods::POST, {auth, form_parser, create_connection_handler}));
+
+        auto router = ptr_router(new web_router<CR>());
+
+        router->register_route(index_route);
+        router->register_route((create_connection_route));
 
         server.register_static("static");
-        router.register_route(std::move(home_route));
-        router.register_route(std::move(index_route));
-        router.register_route(std::move(create_connection_route));
-
-        server.register_router(std::move(router));
+        server.register_router(router);
 
         server.listen(listen_success_callback);
     }
