@@ -5,6 +5,7 @@
 #include <web/web_router.hpp>
 #include <web/web_exceptions.hpp>
 #include <web/web_helpers.hpp>
+
 using namespace hamza::web;
 
 class CR : public hamza::web::web_request
@@ -16,24 +17,6 @@ public:
 };
 
 using req_handler = web_request_handler_t<CR, web_response>;
-template <typename RequestType = CR, typename ResponseType = web_response>
-class crout : public hamza::web::web_route<RequestType, ResponseType>
-{
-public:
-    crout(const std::string &path, const std::string &method, std::vector<req_handler> handlers)
-        : web_route<RequestType, ResponseType>(path, method, handlers) {}
-
-    bool match(const std::string &path, const std::string &method) const override
-    {
-        std::cout << "Custom match logic for path: " << path << " and method: " << method << std::endl;
-        return web_route<RequestType, ResponseType>::match(path, method);
-    }
-
-    ~crout()
-    {
-        std::cout << "Destroying crout: " << this->get_path() << std::endl;
-    }
-};
 
 hamza::web::web_listen_success_callback_t listen_success_callback = []() -> void
 {
@@ -50,6 +33,7 @@ req_handler index_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::w
 {
     try
     {
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // Simulate some processing delay
         std::ifstream file("html/index.html");
         if (file)
         {
@@ -64,8 +48,10 @@ req_handler index_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::w
 
         return hamza::web::EXIT;
     }
-    catch (const std::exception &e)
+    catch (const web_general_exception &e)
     {
+        std::cout << "Error Type " << e.type() << std::endl;
+        std::cout << "Error: " << e.what() << std::endl;
         res->set_status(500, "Internal Server Error");
         res->text("Error: " + std::string(e.what()));
         res->end();
@@ -85,19 +71,18 @@ req_handler form_parser = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web
     {
         res->set_status(400, "Bad Request");
         res->text("Error parsing form data: " + std::string(e.what()));
-        res->end();
         return hamza::web::EXIT;
     }
 };
 req_handler create_connection_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
-    std::cout << "Parsed Body: \n";
+    res->set_status(201, "Created");
+    std::string data;
     for (const auto &[key, value] : req->form_data)
     {
-        std::cout << "  " << key << ": " << value << std::endl;
+        data += key + ": " + value + "\n";
     }
-    res->set_status(201, "Created");
-    res->end();
+    res->set_body("Connection created:\n" + data);
     return hamza::web::EXIT;
 };
 using ptr_route = std::shared_ptr<web_route<CR>>;
@@ -108,8 +93,8 @@ int main()
     {
         web_server<CR> server("0.0.0.0", 8080);
 
-        auto index_route = ptr_route(new crout<CR>("/", methods::GET, {auth, index_handler}));
-        auto create_connection_route = ptr_route(new crout<CR>("/create_connection", methods::POST, {auth, form_parser, create_connection_handler}));
+        auto index_route = ptr_route(new web_route<CR>("/", methods::GET, {auth, index_handler}));
+        auto create_connection_route = ptr_route(new web_route<CR>("/create-connection", methods::POST, {auth, form_parser, create_connection_handler}));
 
         auto router = ptr_router(new web_router<CR>());
 
@@ -119,7 +104,7 @@ int main()
         server.register_static("static");
         server.register_router(router);
 
-        server.listen(listen_success_callback);
+        server.listen();
     }
     catch (const std::exception &e)
     {

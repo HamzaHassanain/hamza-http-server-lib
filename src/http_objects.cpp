@@ -173,14 +173,22 @@ namespace hamza::http
 
     void http_response::end()
     {
-        if (validate())
+        try
         {
-            client_socket->send_on_connection(hamza::data_buffer(to_string()));
-            close_connection(client_socket);
+
+            if (validate())
+            {
+                client_socket->send_on_connection(hamza::data_buffer(to_string()));
+                close_connection(client_socket);
+            }
+            else
+            {
+                throw std::runtime_error("Invalid HTTP response or client connection may be already closed");
+            }
         }
-        else
+        catch (const std::exception &e)
         {
-            throw std::runtime_error("Invalid HTTP response or client connection may be already closed");
+            std::cerr << "Error occurred while ending HTTP response: " << e.what() << std::endl;
         }
     }
 

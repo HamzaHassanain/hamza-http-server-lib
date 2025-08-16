@@ -58,6 +58,10 @@ namespace hamza::web
                                 response->end();
                                 return;
                             }
+                            if (resp == ERROR)
+                            {
+                                throw web_general_exception("Handler returned an error");
+                            }
                         }
                     }
                 }

@@ -86,7 +86,6 @@ namespace hamza::web
 
         ~web_route()
         {
-            std::cout << "Destroying web_route: " << path << std::endl;
         }
     };
 }

@@ -61,7 +61,6 @@ namespace hamza::web
                 std::string uri = req->get_uri();
                 std::string sanitized_path = sanitize_path(uri);
                 std::string file_path;
-                std::cout << "Looking for static file: " << sanitized_path << std::endl;
                 for (const auto &dir : static_directories)
                 {
                     file_path = dir + sanitized_path;
@@ -108,7 +107,6 @@ namespace hamza::web
                 {
                     std::thread([this, web_req_ptr, web_res_ptr]() mutable
                                 {
-                                    std::cout << web_req_ptr->get_method() << " " << web_req_ptr->get_uri() << std::endl;
                                     if (is_uri_static(web_req_ptr->get_uri()))
                                         server_static(web_req_ptr, web_res_ptr);
                                     else
