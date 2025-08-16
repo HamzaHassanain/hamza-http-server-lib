@@ -29,7 +29,6 @@ namespace hamza::http
             : http_server(hamza::socket_address(hamza::ip_address(ip), hamza::port(port), hamza::family(hamza::IPV4))) {}
 
         // disable copy and move
-
         http_server(const http_server &) = delete;
         http_server &operator=(const http_server &) = delete;
         http_server(http_server &&) = delete;

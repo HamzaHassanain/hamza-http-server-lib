@@ -26,6 +26,7 @@ hamza::web::web_listen_success_callback_t listen_success_callback = []() -> void
 req_handler auth = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::web::web_response> res) -> int
 {
     res->add_cookie("session_id", "123456");
+    res->add_cookie("FuckYou", "Hamza", "HttpOnly; Secure");
     return hamza::web::CONTINUE;
 };
 
@@ -34,6 +35,14 @@ req_handler index_handler = [](std::shared_ptr<CR> req, std::shared_ptr<hamza::w
     try
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // Simulate some processing delay
+
+        auto cookies = req->get_cookies();
+
+        for (auto s : cookies)
+        {
+            std::cout << "Cookie: " << s << std::endl;
+        }
+
         std::ifstream file("html/index.html");
         if (file)
         {
