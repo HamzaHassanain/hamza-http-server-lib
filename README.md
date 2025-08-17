@@ -7,13 +7,12 @@ A high-performance, cross-platform HTTP server library written in C++17. This li
 - [Overview](#overview)
 - [Fundamental Networking Concepts](#fundamental-networking-concepts)
 - [Features](#features)
-- [Building the Project](#building-the-project)
+- [About CMakeLists](#about-cmakelists)
 - [Quick Start](#quick-start)
 - [Architecture Overview](#architecture-overview)
 - [API Documentation](#api-documentation)
 - [Examples](#examples)
 - [Platform Support](#platform-support)
-- [About CMakeLists](#about-cmakelists)
 
 ## Overview
 
@@ -256,21 +255,174 @@ This foundation allows our library to provide a clean, high-level HTTP API while
 - C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - Standard networking libraries (automatically linked)
 
-### Build Instructions
+### About CMakeLists
+
+The CMakeLists.txt file is the heart of the build system and contains several important configurations that control how the library is built and tested.
+
+### Build System Overview
+
+The CMake configuration provides a flexible build system that adapts based on environment variables and build modes:
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(http_server)
+set(CMAKE_CXX_STANDARD 17)
+```
+
+**Key Components:**
+
+1. **Source File Collection**:
+
+   ```cmake
+   file(GLOB SRC_FILES src/*.cpp)
+   include_directories(${CMAKE_SOURCE_DIR}/includes)
+   ```
+
+   - Automatically finds all `.cpp` files in the `src/` directory
+   - Sets up include paths for header files
+
+2. **Debug Mode Configuration**:
+   ```cmake
+   set(DEBUG_MODE ON CACHE BOOL "Enable Debug Mode")
+   if(DEBUG_MODE)
+       add_definitions(-DDEBUG_MODE)
+   endif()
+   ```
+   - Enables a `DEBUG_MODE` preprocessor definition
+   - Can be used in C++ code for conditional compilation:
+     ```cpp
+     #ifdef DEBUG_MODE
+         std::cout << "Debug: " << debug_info << std::endl;
+     #endif
+     ```
+
+### Environment File (.env) Loading
+
+The CMakeLists includes a custom function to load environment variables from a `.env` file:
+
+```cmake
+function(load_env_file env_file)
+    # Reads .env file and sets CMake variables
+    # Supports KEY=VALUE format
+    # Ignores comments (lines starting with #)
+    # Strips whitespace from variable names and values
+endfunction()
+
+load_env_file(${CMAKE_SOURCE_DIR}/.env)
+```
+
+**Supported .env Format:**
+
+```properties
+# This is a comment
+LOCAL_TEST=1
+DEBUG_MODE=ON
+# Another comment
+CUSTOM_VAR=value
+```
+
+### LOCAL_TEST Variable - Development vs Production Builds
+
+The `LOCAL_TEST` variable is the key differentiator between development testing and library production builds:
+
+#### When LOCAL_TEST=1 (Development Mode)
+
+```properties
+# .env file
+LOCAL_TEST=1
+```
+
+**What happens:**
+
+1. **Compiler Flags Change**:
+
+   ```cmake
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
+   ```
+
+   - `-Wall -Wextra -pedantic`: Enable comprehensive warnings
+   - `-fsanitize=address`: **AddressSanitizer** for memory error detection
+   - `-g`: Include debugging symbols
+   - `-O0`: Disable optimizations for better debugging
+
+2. **Build Target Changes**:
+
+   ```cmake
+   add_executable(http_server app.cpp ${SRC_FILES})
+   ```
+
+   - Creates an **executable** that includes `app.cpp`
+   - Links the library code directly into the executable
+   - Perfect for testing and development
+
+3. **Memory Safety Testing**:
+   - AddressSanitizer detects:
+     - Buffer overflows
+     - Use-after-free errors
+     - Memory leaks
+     - Double-free errors
+   - Runtime overhead but catches memory bugs early
+
+**Use Case**: Development, testing, debugging, and learning
+
+#### When LOCAL_TEST≠1 or not set (Production Mode)
+
+```properties
+# .env file is empty or LOCAL_TEST=0
+```
+
+**What happens:**
+
+1. **Optimized Compiler Flags**:
+
+   ```cmake
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+   ```
+
+   - Uses default compiler optimizations
+   - No AddressSanitizer overhead
+   - Smaller binary size
+
+2. **Build Target Changes**:
+
+   ```cmake
+   add_library(http_server STATIC ${SRC_FILES})
+   ```
+
+   - Creates a **static library** (.a file on Linux, .lib on Windows)
+   - `app.cpp` is NOT included in the library
+   - Other projects can link against this library
+
+3. **Production Ready**:
+   - Optimized for performance
+   - No debugging overhead
+   - Clean library interface
+
+**Use Case**: Production deployments, library distribution
+
+### Build Configuration Examples
+
+#### Development Build (with LOCAL_TEST=1)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd hamza-http-server-lib
-
-# Build the project
 ./run.sh
+# if .env contains: LOCAL_TEST=1 then this scprit Generates
+# Result: Creates executable ./build/http_server
+# Memory checking enabled, full debugging support
+./build/http_server  # Runs the app.cpp example
 
-# Or manually:
-mkdir -p build
-cmake -S . -B build
-cd build
-make -j$(nproc)
+
+# if .env does not contain: LOCAL_TEST=1
+# Result: Creates static library ./build/libhttp_server.a
+# Other projects can link against this library
+```
+
+#### Using the Library in Another Project
+
+```cmake
+# Another project's CMakeLists.txt
+find_library(HAMZA_HTTP_LIB http_server PATHS /path/to/your/build)
+target_link_libraries(my_app ${HAMZA_HTTP_LIB})
 ```
 
 ## Quick Start
@@ -358,7 +510,7 @@ Low-level socket wrapper providing cross-platform socket operations.
 **Example**:
 
 ```cpp
-hamza::socket_address addr(hamza::ip_address("127.0.0.1"), hamza::port(8080), hamza::family(AF_INET));
+hamza::socket_address addr(hamza::ip_address("127.0.0.1"), hamza::port(8080), hamza::family(hamza::IPV4));
 hamza::socket server_socket(addr, hamza::Protocol::TCP, true);
 server_socket.listen();
 ```
@@ -535,6 +687,135 @@ Cross-platform file descriptor wrapper.
 - [`is_valid_port(port)`](includes/utilities.hpp) - Validate port number
 - [`is_free_port(port)`](includes/utilities.hpp) - Check if port is available
 
+### Constants
+
+The library defines several constants for networking operations and protocol specifications:
+
+#### Protocol Constants
+
+```cpp
+namespace hamza {
+    enum class Protocol {
+        TCP,  // Transmission Control Protocol (reliable, connection-oriented)
+        UDP   // User Datagram Protocol (fast, connectionless)
+    };
+}
+```
+
+**Usage Example**:
+
+```cpp
+hamza::family ipv4_family(hamza::IPV4);
+hamza::family ipv6_family(hamza::IPV6);
+```
+
+#### HTTP Constants
+
+#### Network Utility Constants
+
+**File**: [includes/utilities.hpp](includes/utilities.hpp)
+
+```cpp
+namespace hamza {
+
+    constexpr int IPV4 = AF_INET;     // IPv4 address family
+    constexpr int IPV6 = AF_INET6;    // IPv6 address family (if supported)
+    constexpr int MIN_PORT = 0;       // Minimum valid port number
+    constexpr int MAX_PORT = 65535;   // Maximum valid port number
+    constexpr std::size_t DEFAULT_BUFFER_SIZE = 4096;  // Default buffer size for network operations
+    constexpr std::size_t MAX_BUFFER_SIZE = 65536;     // Maximum buffer size for single operations
+
+    // Socket-related constants
+    constexpr int INVALID_SOCKET_VALUE = -1;  // Invalid socket identifier (Unix)
+    constexpr int SOCKET_ERROR_VALUE = -1;    // Socket operation error return value
+
+    // Timeout constants (in milliseconds)
+    constexpr int DEFAULT_TIMEOUT = 5000;     // Default socket timeout
+    constexpr int CONNECT_TIMEOUT = 10000;    // Connection establishment timeout
+    constexpr int RECV_TIMEOUT = 30000;       // Receive operation timeout
+
+    // Buffer and queue constants
+    constexpr int DEFAULT_LISTEN_BACKLOG = 5;       // Default listen queue size
+    constexpr int MAX_LISTEN_BACKLOG = SOMAXCONN;   // Maximum listen queue size
+}
+```
+
+**File**: [includes/http_headers.hpp](includes/http_headers.hpp)
+
+```cpp
+namespace hamza_http {
+    // HTTP Version Constants
+    constexpr const char* HTTP_VERSION_1_0 = "HTTP/1.0";
+    constexpr const char* HTTP_VERSION_1_1 = "HTTP/1.1";
+
+    // HTTP Status Codes (commonly used)
+    constexpr int HTTP_OK = 200;
+    constexpr int HTTP_CREATED = 201;
+    constexpr int HTTP_NO_CONTENT = 204;
+    constexpr int HTTP_BAD_REQUEST = 400;
+    constexpr int HTTP_UNAUTHORIZED = 401;
+    constexpr int HTTP_FORBIDDEN = 403;
+    constexpr int HTTP_NOT_FOUND = 404;
+    constexpr int HTTP_INTERNAL_SERVER_ERROR = 500;
+
+    // HTTP Methods
+    constexpr const char* HTTP_GET = "GET";
+    constexpr const char* HTTP_POST = "POST";
+    constexpr const char* HTTP_PUT = "PUT";
+    constexpr const char* HTTP_DELETE = "DELETE";
+    constexpr const char* HTTP_HEAD = "HEAD";
+    constexpr const char* HTTP_OPTIONS = "OPTIONS";
+    constexpr const char* HTTP_PATCH = "PATCH";
+
+    // HTTP Headers (commonly used)
+    constexpr const char* HEADER_CONTENT_TYPE = "Content-Type";
+    constexpr const char* HEADER_CONTENT_LENGTH = "Content-Length";
+    constexpr const char* HEADER_CONNECTION = "Connection";
+    constexpr const char* HEADER_HOST = "Host";
+    constexpr const char* HEADER_USER_AGENT = "User-Agent";
+    constexpr const char* HEADER_ACCEPT = "Accept";
+    constexpr const char* HEADER_AUTHORIZATION = "Authorization";
+    constexpr const char *HEADER_REFERER = "Referer";
+    constexpr const char *HEADER_COOKIE = "Cookie";
+    constexpr const char *HEADER_IF_MODIFIED_SINCE = "If-Modified-Since";
+    constexpr const char *HEADER_IF_NONE_MATCH = "If-None-Match";
+    constexpr const char *HEADER_EXPECT = "Expect";
+    // HTTP Line Endings
+    constexpr const char* CRLF = "\r\n";
+    constexpr const char* DOUBLE_CRLF = "\r\n\r\n";
+}
+```
+
+**Usage Examples**:
+
+```cpp
+// Using protocol constants
+hamza::socket tcp_socket(addr, hamza::Protocol::TCP, true);
+hamza::socket udp_socket(addr, hamza::Protocol::UDP, true);
+
+// Using HTTP constants
+response.set_status(hamza_http::HTTP_OK, "OK");
+response.add_header(hamza_http::HEADER_CONTENT_TYPE, "application/json");
+
+// Using address family constants
+hamza::socket_address addr(
+    hamza::ip_address("127.0.0.1"),
+    hamza::port(8080),
+    hamza::family(hamza::IPV4)
+);
+
+// Using buffer size constants
+hamza::data_buffer buffer;
+buffer.reserve(hamza::DEFAULT_BUFFER_SIZE);
+
+// Using HTTP methods in request handling
+if (request.get_method() == hamza_http::HTTP_GET) {
+    // Handle GET request
+} else if (request.get_method() == hamza_http::HTTP_POST) {
+    // Handle POST request
+}
+```
+
 ### Exception Hierarchy
 
 **File**: [includes/exceptions.hpp](includes/exceptions.hpp)
@@ -709,240 +990,3 @@ The examples demonstrate:
 - Uses POSIX socket API
 - Supports all major Linux distributions
 - GCC and Clang support
-
-### About CMakeLists
-
-The CMakeLists.txt file is the heart of the build system and contains several important configurations that control how the library is built and tested.
-
-### Build System Overview
-
-The CMake configuration provides a flexible build system that adapts based on environment variables and build modes:
-
-```cmake
-cmake_minimum_required(VERSION 3.10)
-project(http_server)
-set(CMAKE_CXX_STANDARD 17)
-```
-
-**Key Components:**
-
-1. **Source File Collection**:
-
-   ```cmake
-   file(GLOB SRC_FILES src/*.cpp)
-   include_directories(${CMAKE_SOURCE_DIR}/includes)
-   ```
-
-   - Automatically finds all `.cpp` files in the `src/` directory
-   - Sets up include paths for header files
-
-2. **Debug Mode Configuration**:
-   ```cmake
-   set(DEBUG_MODE ON CACHE BOOL "Enable Debug Mode")
-   if(DEBUG_MODE)
-       add_definitions(-DDEBUG_MODE)
-   endif()
-   ```
-   - Enables a `DEBUG_MODE` preprocessor definition
-   - Can be used in C++ code for conditional compilation:
-     ```cpp
-     #ifdef DEBUG_MODE
-         std::cout << "Debug: " << debug_info << std::endl;
-     #endif
-     ```
-
-### Environment File (.env) Loading
-
-The CMakeLists includes a custom function to load environment variables from a `.env` file:
-
-```cmake
-function(load_env_file env_file)
-    # Reads .env file and sets CMake variables
-    # Supports KEY=VALUE format
-    # Ignores comments (lines starting with #)
-    # Strips whitespace from variable names and values
-endfunction()
-
-load_env_file(${CMAKE_SOURCE_DIR}/.env)
-```
-
-**Supported .env Format:**
-
-```properties
-# This is a comment
-LOCAL_TEST=1
-DEBUG_MODE=ON
-# Another comment
-CUSTOM_VAR=value
-```
-
-### LOCAL_TEST Variable - Development vs Production Builds
-
-The `LOCAL_TEST` variable is the key differentiator between development testing and library production builds:
-
-#### When LOCAL_TEST=1 (Development Mode)
-
-```properties
-# .env file
-LOCAL_TEST=1
-```
-
-**What happens:**
-
-1. **Compiler Flags Change**:
-
-   ```cmake
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
-   ```
-
-   - `-Wall -Wextra -pedantic`: Enable comprehensive warnings
-   - `-fsanitize=address`: **AddressSanitizer** for memory error detection
-   - `-g`: Include debugging symbols
-   - `-O0`: Disable optimizations for better debugging
-
-2. **Build Target Changes**:
-
-   ```cmake
-   add_executable(http_server app.cpp ${SRC_FILES})
-   ```
-
-   - Creates an **executable** that includes `app.cpp`
-   - Links the library code directly into the executable
-   - Perfect for testing and development
-
-3. **Memory Safety Testing**:
-   - AddressSanitizer detects:
-     - Buffer overflows
-     - Use-after-free errors
-     - Memory leaks
-     - Double-free errors
-   - Runtime overhead but catches memory bugs early
-
-**Use Case**: Development, testing, debugging, and learning
-
-#### When LOCAL_TEST≠1 or not set (Production Mode)
-
-```properties
-# .env file is empty or LOCAL_TEST=0
-```
-
-**What happens:**
-
-1. **Optimized Compiler Flags**:
-
-   ```cmake
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-   ```
-
-   - Uses default compiler optimizations
-   - No AddressSanitizer overhead
-   - Smaller binary size
-
-2. **Build Target Changes**:
-
-   ```cmake
-   add_library(http_server STATIC ${SRC_FILES})
-   ```
-
-   - Creates a **static library** (.a file on Linux, .lib on Windows)
-   - `app.cpp` is NOT included in the library
-   - Other projects can link against this library
-
-3. **Production Ready**:
-   - Optimized for performance
-   - No debugging overhead
-   - Clean library interface
-
-**Use Case**: Production deployments, library distribution
-
-### Build Configuration Examples
-
-#### Development Build (with LOCAL_TEST=1)
-
-```bash
-# .env contains: LOCAL_TEST=1
-./run.sh
-
-# Result: Creates executable ./build/http_server
-# Memory checking enabled, full debugging support
-./build/http_server  # Runs the app.cpp example
-```
-
-#### Production Build (library mode)
-
-```bash
-# .env is empty or LOCAL_TEST=0
-mkdir build && cd build
-cmake ..
-make
-
-# Result: Creates static library ./build/libhttp_server.a
-# Other projects can link against this library
-```
-
-#### Using the Library in Another Project
-
-```cmake
-# Another project's CMakeLists.txt
-find_library(HAMZA_HTTP_LIB http_server PATHS /path/to/your/build)
-target_link_libraries(my_app ${HAMZA_HTTP_LIB})
-```
-
-### Advanced Build Options
-
-You can override CMake variables from command line:
-
-```bash
-# Force debug mode regardless of .env
-cmake -DDEBUG_MODE=ON ..
-
-# Disable debug mode
-cmake -DDEBUG_MODE=OFF ..
-
-# Set custom compiler flags
-cmake -DCMAKE_CXX_FLAGS="-O3 -march=native" ..
-```
-
-### Memory Testing with AddressSanitizer
-
-When `LOCAL_TEST=1`, AddressSanitizer helps catch memory issues:
-
-```cpp
-// This would be caught by AddressSanitizer:
-int* ptr = new int[10];
-delete[] ptr;
-ptr[0] = 42;  // Use-after-free - ASAN will detect this!
-```
-
-**AddressSanitizer Output Example:**
-
-```
-==12345==ERROR: AddressSanitizer: heap-use-after-free on address 0x60200000eff0
-READ of size 4 at 0x60200000eff0 thread T0
-    #0 0x4567890 in main app.cpp:15
-```
-
-### Best Practices
-
-1. **Development Workflow**:
-
-   - Set `LOCAL_TEST=1` in `.env` for development
-   - Use `./run.sh` for quick builds and testing
-   - Monitor AddressSanitizer output for memory issues
-
-2. **Production Deployment**:
-
-   - Remove or set `LOCAL_TEST=0` for production builds
-   - Build static library for distribution
-   - Use release optimizations
-
-3. **Continuous Integration**:
-
-   - Test with both `LOCAL_TEST=1` (memory checking) and `LOCAL_TEST=0` (performance)
-   - Ensure library builds cleanly without `app.cpp` dependencies
-
-4. **Cross-Platform Builds**:
-   - The same CMakeLists.txt works on Windows, Linux, and macOS
-   - AddressSanitizer support varies by compiler (best with GCC/Clang)
-
-This flexible build system allows seamless switching between development testing and production library builds, making it ideal for both learning and real-world usage.

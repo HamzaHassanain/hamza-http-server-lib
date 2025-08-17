@@ -33,7 +33,7 @@ int main()
     hamza::socket_address server_addr(
         hamza::ip_address("127.0.0.1"),
         hamza::port(8080),
-        hamza::family(AF_INET));
+        hamza::family(hamza::IPV4));
     hamza::socket server_socket(server_addr, hamza::Protocol::TCP, true);
 
     server_socket.listen(5);

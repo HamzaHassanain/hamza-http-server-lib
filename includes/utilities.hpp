@@ -29,8 +29,25 @@ const int SOCKET_ERROR_VALUE = -1;
 namespace hamza
 {
 
-    const int IPV4 = AF_INET;
-    const int IPV6 = AF_INET6;
+    constexpr int IPV4 = AF_INET;                     // IPv4 address family
+    constexpr int IPV6 = AF_INET6;                    // IPv6 address family (if supported)
+    constexpr int MIN_PORT = 0;                       // Minimum valid port number
+    constexpr int MAX_PORT = 65535;                   // Maximum valid port number
+    constexpr std::size_t DEFAULT_BUFFER_SIZE = 4096; // Default buffer size for network operations
+    constexpr std::size_t MAX_BUFFER_SIZE = 65536;    // Maximum buffer size for single operations
+
+    // Socket-related constants
+    constexpr int INVALID_SOCKET_VALUE = -1; // Invalid socket identifier (Unix)
+    constexpr int SOCKET_ERROR_VALUE = -1;   // Socket operation error return value
+
+    // Timeout constants (in milliseconds)
+    constexpr int DEFAULT_TIMEOUT = 5000;  // Default socket timeout
+    constexpr int CONNECT_TIMEOUT = 10000; // Connection establishment timeout
+    constexpr int RECV_TIMEOUT = 30000;    // Receive operation timeout
+
+    // Buffer and queue constants
+    constexpr int DEFAULT_LISTEN_BACKLOG = 5;     // Default listen queue size
+    constexpr int MAX_LISTEN_BACKLOG = SOMAXCONN; // Maximum listen queue size
 
     enum class Protocol
     {
