@@ -146,4 +146,5 @@ Thumbs.db
 test_client
 test_server
 
-shit
+.vscode/
+.env

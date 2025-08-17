@@ -9,21 +9,64 @@ if(DEBUG_MODE)
     add_definitions(-DDEBUG_MODE)
 endif()
 
-# add debuging for c++ gcc
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 
 file(GLOB SRC_FILES src/*.cpp)
 
-# link all cpp files inside framework folder, framework/src
 
 set(CMAKE_CXX_STANDARD 17)
-# Add include directory for header.hpp
 include_directories(${CMAKE_SOURCE_DIR}/includes)
-# include_directories(${CMAKE_SOURCE_DIR}/web)
-# include_directories(${CMAKE_SOURCE_DIR}/lib)
 
-# add_executable(  socket_example app.cpp ${SRC_FILES} ${SRC_FILES_NESTED} )
 
-add_library(http_server STATIC ${SRC_FILES})
+
+
+
+# Function to read .env file and set variables
+function(load_env_file env_file)
+    if(EXISTS ${env_file})
+        file(READ ${env_file} ENV_CONTENT)
+        string(REPLACE "\n" ";" ENV_LINES ${ENV_CONTENT})
+        
+        foreach(line ${ENV_LINES})
+            # Skip empty lines and comments
+            if(line AND NOT line MATCHES "^#")
+                string(FIND ${line} "=" eq_pos)
+                if(eq_pos GREATER -1)
+                    string(SUBSTRING ${line} 0 ${eq_pos} var_name)
+                    math(EXPR val_start "${eq_pos} + 1")
+                    string(SUBSTRING ${line} ${val_start} -1 var_value)
+                    
+                    # Remove any whitespace
+                    string(STRIP ${var_name} var_name)
+                    string(STRIP ${var_value} var_value)
+                    
+                    # Set the variable in parent scope
+                    set(${var_name} ${var_value} PARENT_SCOPE)
+                    message(STATUS "Loaded env variable: ${var_name}=${var_value}")
+                endif()
+            endif()
+        endforeach()
+    else()
+        message(WARNING ".env file not found at ${env_file}")
+    endif()
+endfunction()
+
+# Load environment variables from .env file
+load_env_file(${CMAKE_SOURCE_DIR}/.env)
+
+
+
+if(LOCAL_TEST AND LOCAL_TEST STREQUAL "1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif()
+
+
+
+
+
+if(LOCAL_TEST AND LOCAL_TEST STREQUAL "1")
+    add_executable(  http_server app.cpp ${SRC_FILES}   )
+else()
+    add_library(http_server STATIC ${SRC_FILES})
+endif()
