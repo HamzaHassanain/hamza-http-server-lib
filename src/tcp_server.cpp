@@ -156,8 +156,7 @@ namespace hamza
     {
         try
         {
-            auto client_socket = server_socket->accept();
-            auto client_socket_ptr = std::make_shared<hamza::socket>(std::move(client_socket));
+            auto client_socket_ptr = server_socket->accept();
 
             if (client_socket_ptr == nullptr)
             {

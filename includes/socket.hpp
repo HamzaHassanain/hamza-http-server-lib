@@ -57,7 +57,7 @@ namespace hamza
         void connect(const socket_address &addr);
         void listen(int backlog = SOMAXCONN);
 
-        socket accept();
+        std::shared_ptr<socket> accept();
 
         // for UDP connections
         data_buffer receive(socket_address &client_addr);

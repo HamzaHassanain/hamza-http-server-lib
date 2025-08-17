@@ -89,7 +89,7 @@ namespace hamza
             throw std::runtime_error("Failed to set SO_REUSEADDR option: " + std::string(strerror(errno)));
         }
     }
-    socket socket::accept()
+    std::shared_ptr<socket> socket::accept()
     {
         if (protocol != Protocol::TCP)
         {
@@ -108,7 +108,7 @@ namespace hamza
         socket_address client_socket_address(client_addr);
         socket new_socket(file_descriptor(client_fd), protocol);
         new_socket.addr = client_socket_address; // Set the address of the new socket
-        return new_socket;
+        return std::make_shared<socket>(std::move(new_socket));
     }
 
     data_buffer socket::receive(socket_address &client_addr)
