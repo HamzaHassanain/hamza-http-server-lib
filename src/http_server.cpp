@@ -86,7 +86,7 @@ namespace hamza_http
         body_stream << request_stream.rdbuf();
         body = body_stream.str();
 
-        if (content_length < body.size())
+        if (content_length < static_cast<int>(body.size()))
         {
             throw std::runtime_error("Content-Length mismatch: expected " + std::to_string(content_length) +
                                      " but received " + std::to_string(body.size()));
@@ -128,6 +128,7 @@ namespace hamza_http
 
     void http_server::on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr)
     {
+        (void)sock_ptr;
         // for debugging purposes
         // std::cout << "--------------------------------------------------------\n";
         // std::cout << "Client disconnected: " << sock_ptr->get_remote_address() << std::endl;
@@ -136,6 +137,7 @@ namespace hamza_http
 
     void http_server::on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
     {
+        (void)sock_ptr;
         // for debugging purposes
         // std::cout << "--------------------------------------------------------\n";
         // std::cout << "New client connected: " << sock_ptr->get_remote_address() << std::endl;

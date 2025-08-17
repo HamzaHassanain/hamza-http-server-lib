@@ -26,7 +26,7 @@ namespace hamza
         }
     }
 
-    socket_address::socket_address(sockaddr_storage &addr, socklen_t addr_len)
+    socket_address::socket_address(sockaddr_storage &addr)
     {
         if (addr.ss_family == AF_INET)
         {

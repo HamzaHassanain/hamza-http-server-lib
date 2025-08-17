@@ -105,7 +105,7 @@ namespace hamza
             throw std::runtime_error("Failed to accept connection: " + std::string(strerror(errno)));
         }
 
-        socket_address client_socket_address(client_addr, client_addr_len);
+        socket_address client_socket_address(client_addr);
         socket new_socket(file_descriptor(client_fd), protocol);
         new_socket.addr = client_socket_address; // Set the address of the new socket
         return new_socket;
@@ -132,7 +132,7 @@ namespace hamza
             throw std::runtime_error("Failed to receive data: " + std::string(strerror(errno)));
         }
 
-        client_addr = socket_address(sender_addr, sender_addr_len);
+        client_addr = socket_address(sender_addr);
         return data_buffer(buffer, static_cast<std::size_t>(bytes_received));
     }
 

@@ -15,14 +15,14 @@ namespace hamza
 
     private:
         ip_address address;             // IP address
-        port port_id;                   // Port
         family family_id;               // Address family
+        port port_id;                   // Port
         std::shared_ptr<sockaddr> addr; // Socket address pointer
 
     public:
         explicit socket_address() = default; // Default constructor
         explicit socket_address(const ip_address &address, const port &port_id, const family &family_id);
-        explicit socket_address(sockaddr_storage &addr, socklen_t addr_len);
+        explicit socket_address(sockaddr_storage &addr);
         socket_address(const socket_address &other);            // Custom copy constructor
         socket_address &operator=(const socket_address &other); // Custom copy assignment operator
         socket_address(socket_address &&) = default;            // Move constructor

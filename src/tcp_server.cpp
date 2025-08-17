@@ -50,8 +50,6 @@ namespace hamza
             clients.erase(sock_ptr);
             sock_ptr->disconnect();
 
-            int server_fd = server_socket->get_file_descriptor().get();
-
             fd_select_server.set_max_fd(std::max(server_socket->get_file_descriptor().get(), clients.max()));
             this->on_client_disconnect(sock_ptr);
         }

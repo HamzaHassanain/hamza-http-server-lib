@@ -9,6 +9,7 @@ int main()
     server.set_request_callback([](hamza_http::http_request &request, hamza_http::http_response &response)
                                 {
         // Handle the request and prepare the response
+        std::cout << "Received request: " << request.get_method() << " " << request.get_uri() << std::endl;
         response.set_status(200 , "OK");
         response.add_header("Content-Type", "text/plain");
         response.set_body("Hello, World!");
