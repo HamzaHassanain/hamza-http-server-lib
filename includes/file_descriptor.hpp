@@ -5,7 +5,7 @@
 
 // Platform-specific socket type definitions
 // Windows uses SOCKET (unsigned int) while Unix-like systems use int
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
 typedef SOCKET socket_t; ///< Windows socket type (unsigned integer)
 #else

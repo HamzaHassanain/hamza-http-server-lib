@@ -64,9 +64,15 @@ protected:
 
 int main()
 {
-
+    if (!hamza::initialize_socket_library())
+    {
+        std::cerr << "Failed to initialize socket library." << std::endl;
+        return 1;
+    }
     web server;
     server.listen();
+
+    hamza::cleanup_socket_library();
 
     return 0;
 }

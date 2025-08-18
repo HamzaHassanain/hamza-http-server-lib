@@ -5,9 +5,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstring>
-
+#include <thread>
 // Platform-specific includes
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <mstcpip.h>
@@ -31,17 +31,6 @@
 
 namespace hamza
 {
-    /**
-     * Helper function to get cross-platform socket error message
-     */
-    static std::string get_socket_error_message()
-    {
-#ifdef _WIN32
-        return std::to_string(WSAGetLastError());
-#else
-        return std::string(strerror(errno));
-#endif
-    }
 
     socket::socket(const Protocol &protocol = Protocol::UDP)
         : protocol(protocol)
@@ -137,7 +126,7 @@ namespace hamza
         // Returns 0 on success, -1 on error (sets errno)
         if (::connect(fd.get(), server_address.get_sock_addr(), server_address.get_sock_addr_len()) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to connect to address: " + std::string(strerror(errno)), "SocketConnection", __func__);
+            throw socket_exception("Failed to connect to address: " + std::string(get_error_message()), "SocketConnection", __func__);
         }
     }
 
@@ -156,7 +145,7 @@ namespace hamza
         // Common errors: EADDRINUSE (port in use), EACCES (permission denied)
         if (::bind(fd.get(), this->addr.get_sock_addr(), this->addr.get_sock_addr_len()) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to bind to address: " + std::string(strerror(errno)), "SocketBinding", __func__);
+            throw socket_exception("Failed to bind to address: " + std::string(get_error_message()), "SocketBinding", __func__);
         }
     }
 
@@ -179,7 +168,7 @@ namespace hamza
         // Returns 0 on success, -1 on error
         if (::listen(fd.get(), backlog) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to listen on socket: " + std::string(strerror(errno)), "SocketListening", __func__);
+            throw socket_exception("Failed to listen on socket: " + std::string(get_error_message()), "SocketListening", __func__);
         }
     }
 
@@ -199,7 +188,7 @@ namespace hamza
         // Returns 0 on success, -1 on error
         if (setsockopt(fd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_REUSEADDR option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_REUSEADDR option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -217,7 +206,7 @@ namespace hamza
         // Must be explicitly enabled for security reasons
         if (setsockopt(fd.get(), SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_BROADCAST option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_BROADCAST option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -237,7 +226,7 @@ namespace hamza
             // IP_MULTICAST_LOOP: control multicast loopback for IPv4
             if (setsockopt(fd.get(), IPPROTO_IP, IP_MULTICAST_LOOP, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
             {
-                throw socket_exception("Failed to set IP_MULTICAST_LOOP option: " + get_socket_error_message(), "SocketOption", __func__);
+                throw socket_exception("Failed to set IP_MULTICAST_LOOP option: " + std::string(get_error_message()), "SocketOption", __func__);
             }
         }
         else if (addr.get_family() == family(IPV6))
@@ -245,7 +234,7 @@ namespace hamza
             // IPV6_MULTICAST_LOOP: control multicast loopback for IPv6
             if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
             {
-                throw socket_exception("Failed to set IPV6_MULTICAST_LOOP option: " + get_socket_error_message(), "SocketOption", __func__);
+                throw socket_exception("Failed to set IPV6_MULTICAST_LOOP option: " + std::string(get_error_message()), "SocketOption", __func__);
             }
         }
     }
@@ -269,7 +258,7 @@ namespace hamza
         // IPV6_V6ONLY: restrict socket to IPv6 only (no IPv4-mapped addresses)
         if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set IPV6_V6ONLY option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set IPV6_V6ONLY option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -282,12 +271,12 @@ namespace hamza
      */
     void socket::set_non_blocking(bool enable)
     {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         // Windows implementation using ioctlsocket
         u_long mode = enable ? 1 : 0;
         if (ioctlsocket(fd.get(), FIONBIO, &mode) != 0)
         {
-            throw socket_exception("Failed to set socket non-blocking mode: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set socket non-blocking mode: " + std::string(get_error_message()), "SocketOption", __func__);
         }
 #else
         // UNIX/Linux implementation using fcntl
@@ -295,7 +284,7 @@ namespace hamza
         int flags = fcntl(fd.get(), F_GETFL, 0);
         if (flags == -1)
         {
-            throw socket_exception("Failed to get socket flags: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to get socket flags: " + std::string(get_error_message()), "SocketOption", __func__);
         }
 
         // Modify O_NONBLOCK flag based on enable parameter
@@ -311,7 +300,7 @@ namespace hamza
         // Apply modified flags back to file descriptor
         if (fcntl(fd.get(), F_SETFL, flags) == -1)
         {
-            throw socket_exception("Failed to set socket non-blocking mode: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set socket non-blocking mode: " + std::string(get_error_message()), "SocketOption", __func__);
         }
 #endif
     }
@@ -335,7 +324,7 @@ namespace hamza
         // SO_KEEPALIVE: enable TCP keep-alive probes
         if (setsockopt(fd.get(), SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_KEEPALIVE option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_KEEPALIVE option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -356,7 +345,7 @@ namespace hamza
         // struct linger contains: l_onoff (enable/disable), l_linger (timeout in seconds)
         if (setsockopt(fd.get(), SOL_SOCKET, SO_LINGER, &ling, sizeof(ling)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_LINGER option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_LINGER option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -378,7 +367,7 @@ namespace hamza
         // Kernel may round up to nearest valid size
         if (setsockopt(fd.get(), SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_SNDBUF option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_SNDBUF option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -400,7 +389,7 @@ namespace hamza
         // Kernel may round up to nearest valid size
         if (setsockopt(fd.get(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_RCVBUF option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_RCVBUF option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -424,7 +413,7 @@ namespace hamza
         // TCP_NODELAY: disable Nagle's algorithm for immediate packet transmission
         if (setsockopt(fd.get(), IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set TCP_NODELAY option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set TCP_NODELAY option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
     }
 
@@ -443,7 +432,7 @@ namespace hamza
             throw socket_exception("TCP_QUICKACK is only supported for TCP sockets", "ProtocolMismatch", __func__);
         }
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         // Windows does not support TCP_QUICKACK equivalent
         throw socket_exception("TCP_QUICKACK option not supported on Windows", "UnsupportedOption", __func__);
 #elif defined(TCP_QUICKACK)
@@ -451,7 +440,7 @@ namespace hamza
         int optval = enable ? 1 : 0;
         if (setsockopt(fd.get(), IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set TCP_QUICKACK option: " + get_socket_error_message(), "SocketOption", __func__);
+            throw socket_exception("Failed to set TCP_QUICKACK option: " + std::string(get_error_message()), "SocketOption", __func__);
         }
 #else
         // Other UNIX systems that don't support TCP_QUICKACK
@@ -479,7 +468,7 @@ namespace hamza
             // IP_TOS: set Type of Service field in IPv4 header
             if (setsockopt(fd.get(), IPPROTO_IP, IP_TOS, &value, sizeof(value)) == SOCKET_ERROR_VALUE)
             {
-                throw socket_exception("Failed to set IP_TOS option: " + get_socket_error_message(), "SocketOption", __func__);
+                throw socket_exception("Failed to set IP_TOS option: " + std::string(get_error_message()), "SocketOption", __func__);
             }
         }
         else if (addr.get_family() == family(IPV6))
@@ -487,7 +476,7 @@ namespace hamza
             // IPV6_TCLASS: set Traffic Class field in IPv6 header
             if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_TCLASS, &value, sizeof(value)) == SOCKET_ERROR_VALUE)
             {
-                throw socket_exception("Failed to set IPV6_TCLASS option: " + get_socket_error_message(), "SocketOption", __func__);
+                throw socket_exception("Failed to set IPV6_TCLASS option: " + std::string(get_error_message()), "SocketOption", __func__);
             }
         }
     }
@@ -498,7 +487,7 @@ namespace hamza
      * Returns a new socket object representing the client connection.
      * Original socket remains in listening state for more connections.
      */
-    std::shared_ptr<socket> socket::accept()
+    std::shared_ptr<socket> socket::accept(bool NON_BLOCKING)
     {
         // Verify this is a TCP socket - UDP doesn't have connections to accept
         if (protocol != Protocol::TCP)
@@ -512,11 +501,32 @@ namespace hamza
         // ::accept(sockfd, addr, addrlen) - accept pending connection
         // Returns new socket descriptor for the connection, -1 on error
         // Fills client_addr with client's address information
-        socket_t client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
-
+        socket_t client_fd;
+        if (!NON_BLOCKING)
+            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
+        else
+        {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            // use non-blocking accept on Windows
+            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
+            if (client_fd != INVALID_SOCKET)
+            {
+                u_long mode = 1; // 1 to enable non-blocking socket
+                if (ioctlsocket(client_fd, FIONBIO, &mode) != 0)
+                {
+                    closesocket(client_fd);
+                    client_fd = INVALID_SOCKET;
+                    throw socket_exception("Failed to set non-blocking mode on accepted socket: " + std::string(get_error_message()), "SocketOption", __func__);
+                }
+            }
+#else
+            // Use non-blocking accept on UNIX
+            client_fd = ::accept4(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+#endif
+        }
         if (!is_valid_socket(client_fd))
         {
-            throw socket_exception("Failed to accept connection: " + std::string(strerror(errno)), "SocketAcceptance", __func__);
+            throw socket_exception("Failed to accept connection: " + std::string(get_error_message()), "SocketAcceptance", __func__);
         }
 
         // Create new socket object for the accepted connection
@@ -544,7 +554,7 @@ namespace hamza
         socklen_t sender_addr_len = sizeof(sender_addr);
 
         // Use 64KB buffer for UDP - theoretical max UDP payload is 65507 bytes
-        char buffer[65536];
+        char buffer[MAX_BUFFER_SIZE];
 
         // ::recvfrom(sockfd, buf, len, flags, src_addr, addrlen) - receive datagram
         // Returns number of bytes received, -1 on error
@@ -554,7 +564,7 @@ namespace hamza
 
         if (bytes_received == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to receive data: " + std::string(strerror(errno)), "SocketReceive", __func__);
+            throw socket_exception("Failed to receive data: " + std::string(get_error_message()), "SocketReceive", __func__);
         }
 
         // Extract sender's address and return received data
@@ -583,7 +593,7 @@ namespace hamza
 
         if (bytes_sent == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to send data: " + std::string(strerror(errno)), "SocketSend", __func__);
+            throw socket_exception("Failed to send data: " + std::string(get_error_message()), "SocketSend", __func__);
         }
 
         // UDP should send all data in one operation - partial sends indicate problems
@@ -623,7 +633,7 @@ namespace hamza
 
             if (bytes_sent == SOCKET_ERROR_VALUE)
             {
-                throw socket_exception("Failed to write data: " + std::string(strerror(errno)), "SocketWrite", __func__);
+                throw socket_exception("Failed to write data: " + std::string(get_error_message()), "SocketWrite", __func__);
             }
 
             total_sent += static_cast<std::size_t>(bytes_sent);
@@ -653,42 +663,38 @@ namespace hamza
         }
 
         data_buffer received_data;
-        char buffer[DEFAULT_BUFFER_SIZE];
-        int itrs = 0;
-        int total_received = 0;
+        char buffer[MAX_BUFFER_SIZE];
 
-        // Read data in chunks until no more data available
         while (true)
         {
-            itrs++;
-            // ::read(fd, buf, count) - read data from file descriptor
-            // Returns number of bytes read, 0 on EOF, -1 on error
-            ssize_t bytes_received = ::read(fd.get(), buffer, sizeof(buffer));
+// ::read(fd, buf, count) - read data from file descriptor
+// Returns number of bytes read, 0 on EOF, -1 on error
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            ssize_t bytes_received = ::recv(fd.get(), buffer, sizeof(buffer), 0);
+#else
+            int bytes_received = ::read(fd.get(), buffer, sizeof(buffer));
+#endif
+            // EOF
+            if (!bytes_received)
+            {
+                break;
+            }
 
             if (bytes_received == SOCKET_ERROR_VALUE)
             {
                 // For non-blocking sockets, EAGAIN/EWOULDBLOCK means no data available
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                if (WSAGetLastError() == WSAEWOULDBLOCK)
+#else
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
+#endif
                 {
                     break;
                 }
-                throw socket_exception("Failed to read data: " + std::string(strerror(errno)), "SocketRead", __func__);
-            }
-
-            // bytes_received == 0 indicates connection closed by peer
-            if (bytes_received == 0)
-            {
-                break;
+                throw socket_exception("Failed to read data: " + std::string(get_error_message()), "SocketRead", __func__);
             }
 
             received_data.append(buffer, static_cast<std::size_t>(bytes_received));
-            total_received += bytes_received;
-
-            // If we received less than buffer size, likely no more data available
-            if (bytes_received < DEFAULT_BUFFER_SIZE)
-            {
-                break;
-            }
         }
 
         return received_data;

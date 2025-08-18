@@ -2,6 +2,7 @@
 
 #include <string>
 #include <chrono>
+#include <cstring> // For strerror
 #include <sys/socket.h>
 
 // Platform detection and common socket types
@@ -19,6 +20,9 @@ const int SOCKET_ERROR_VALUE = SOCKET_ERROR;
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 using socket_t = int;
 const socket_t INVALID_SOCKET_VALUE = -1;
 const int SOCKET_ERROR_VALUE = -1;
@@ -43,7 +47,7 @@ namespace hamza
     const int MAX_PORT = 65535; ///< Maximum valid port number
 
     // Buffer size constants for network operations
-    const std::size_t DEFAULT_BUFFER_SIZE = 8192; ///< Default buffer size for socket I/O operations
+    const std::size_t DEFAULT_BUFFER_SIZE = 1024; ///< Default buffer size for socket I/O operations
     const std::size_t MAX_BUFFER_SIZE = 65536;    ///< Maximum buffer size for single network operations
 
     // Timeout constants (in milliseconds)
@@ -201,4 +205,8 @@ namespace hamza
      * @note Returns false for listening sockets or unconnected UDP sockets
      */
     bool is_socket_connected(socket_t socket);
+
+    std::string get_error_message();
+    std::string to_upper_case(const std::string &input);
+
 }

@@ -409,4 +409,24 @@ namespace hamza
         return getpeername(socket, reinterpret_cast<sockaddr *>(&addr), &addr_len) == 0;
 #endif
     }
+
+    std::string get_error_message()
+    {
+        {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            return std::to_string(WSAGetLastError());
+#else
+            return std::string(strerror(errno));
+#endif
+        }
+    }
+
+    std::string to_upper_case(const std::string &input)
+    {
+        std::string upper_case_str = input;
+        std::transform(upper_case_str.begin(), upper_case_str.end(), upper_case_str.begin(),
+                       [](unsigned char c)
+                       { return std::toupper(c); });
+        return upper_case_str;
+    }
 }

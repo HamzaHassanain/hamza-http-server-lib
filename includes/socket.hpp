@@ -3,7 +3,7 @@
 #include <string>
 
 // Platform-specific includes
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -299,7 +299,7 @@ namespace hamza
          * @throws socket_exception with type "ProtocolMismatch" if called on non-TCP socket
          * @throws socket_exception with type "SocketAcceptance" if accept operation fails
          */
-        std::shared_ptr<socket> accept();
+        std::shared_ptr<socket> accept(bool NON_BLOCKING = true);
 
         /**
          * @brief Receive data from any client (UDP only).

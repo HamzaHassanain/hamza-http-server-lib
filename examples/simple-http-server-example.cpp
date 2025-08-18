@@ -3,6 +3,13 @@
 #include <tcp_server.hpp>
 int main()
 {
+
+    if (!hamza::initialize_socket_library())
+    {
+        std::cerr << "Failed to initialize socket library." << std::endl;
+        return 1;
+    }
+
     auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 12345);
     int ReqCnt = 0;
     using reqT = hamza_http::http_request;
@@ -83,6 +90,7 @@ int main()
     server->set_waiting_for_activity_callback(waiting_for_activity_callback);
 
     server->listen();
+    hamza::cleanup_socket_library();
 
     return 0;
 }

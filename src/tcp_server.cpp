@@ -20,7 +20,10 @@ namespace hamza
     {
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
-        server_socket = std::make_shared<hamza::socket>(addr, hamza::Protocol::TCP, true);
+        server_socket = std::make_shared<hamza::socket>(hamza::Protocol::TCP);
+        server_socket->set_reuse_address(true);
+        server_socket->set_non_blocking(true);
+        server_socket->bind(addr);
 
         // Put socket into listening mode to accept incoming connections
         // SOMAXCONN is used as default backlog (max pending connections)
@@ -160,10 +163,15 @@ namespace hamza
 
                 if (activity < 0)
                 {
-                    // Handle select() errors
+// Handle select() errors
+#ifdef _WIN32
+                    if (WSAGetLastError() == WSAEINTR)
+                        throw std::runtime_error("Select interrupted by signal.");
+#else
                     if (errno == EINTR)
                         throw std::runtime_error("Select interrupted by signal.");
-                    throw std::runtime_error("Select error: " + std::string(strerror(errno)));
+#endif
+                    throw std::runtime_error("Select error: " + std::string(get_error_message()));
                 }
 
                 if (activity == 0)
@@ -241,7 +249,7 @@ namespace hamza
         {
             // Provide detailed error information including client identification
             std::string error_message = "Error handling client activity: " + std::string(e.what());
-            error_message += "\nfor client: " + client_ip + ":" + client_port + "\nRemove any misbehaving clients is recommended.";
+            error_message += "\nfor client: " + client_ip + ":" + client_port;
             this->on_exception(std::make_shared<hamza::socket_exception>(error_message, "TCP_SERVER_ClientActivity", __func__));
         }
     }

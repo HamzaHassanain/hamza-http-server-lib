@@ -1,4 +1,5 @@
 #include <http_response.hpp>
+#include <utilities.hpp>
 #include <iostream>
 #include <sstream>
 
@@ -6,7 +7,17 @@ namespace hamza_http
 {
     http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
                                  std::shared_ptr<hamza::socket> client_socket)
-        : version(version), headers(headers), client_socket(client_socket) {}
+        : version(version), headers(headers), client_socket(client_socket)
+    {
+
+        std::multimap<std::string, std::string> lower_case_headers;
+
+        for (const auto &header : headers)
+        {
+            lower_case_headers.insert({hamza::to_upper_case(header.first), header.second});
+        }
+        this->headers = std::move(lower_case_headers);
+    }
 
     http_response::http_response(http_response &&other)
         : version(std::move(other.version)), status_code(other.status_code),
@@ -35,7 +46,7 @@ namespace hamza_http
 
         for (const auto &header : headers)
         {
-            response_stream << header.first << ": " << header.second << "\r\n";
+            response_stream << hamza::to_upper_case(header.first) << ": " << header.second << "\r\n";
         }
 
         response_stream << "\r\n"
@@ -43,7 +54,7 @@ namespace hamza_http
 
         for (const auto &trailer : trailers)
         {
-            response_stream << trailer.first << ": " << trailer.second << "\r\n";
+            response_stream << hamza::to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
         }
 
         return response_stream.str();
@@ -67,12 +78,13 @@ namespace hamza_http
 
     void http_response::add_trailer(const std::string &name, const std::string &value)
     {
-        trailers.insert({name, value});
+
+        trailers.insert({hamza::to_upper_case(name), value});
     }
 
     void http_response::add_header(const std::string &name, const std::string &value)
     {
-        headers.insert({name, value});
+        headers.insert({hamza::to_upper_case(name), value});
     }
 
     std::string http_response::get_body() const
@@ -98,7 +110,7 @@ namespace hamza_http
     std::vector<std::string> http_response::get_header(const std::string &name) const
     {
         std::vector<std::string> values;
-        auto range = headers.equal_range(name);
+        auto range = headers.equal_range(hamza::to_upper_case(name));
         for (auto it = range.first; it != range.second; ++it)
         {
             values.push_back(it->second);
@@ -109,7 +121,7 @@ namespace hamza_http
     std::vector<std::string> http_response::get_trailer(const std::string &name) const
     {
         std::vector<std::string> values;
-        auto range = trailers.equal_range(name);
+        auto range = trailers.equal_range(hamza::to_upper_case(name));
         for (auto it = range.first; it != range.second; ++it)
         {
             values.push_back(it->second);
@@ -152,7 +164,7 @@ namespace hamza_http
         }
         catch (const std::exception &e)
         {
-            throw std::runtime_error("Error sending HTTP response: " + std::string(e.what()));
+            throw std::runtime_error("Error sending HTTP response:\n" + std::string(e.what()));
         }
     }
 }
