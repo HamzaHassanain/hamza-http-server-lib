@@ -24,10 +24,6 @@ namespace hamza_http
         {
             return false;
         }
-        if (status_code < 100 || status_code > 599)
-        {
-            return false;
-        }
 
         return true;
     }
@@ -127,7 +123,6 @@ namespace hamza_http
         {
             if (validate())
             {
-                client_socket->send_on_connection(hamza::data_buffer(to_string()));
                 close_connection(client_socket);
             }
             else
@@ -137,7 +132,27 @@ namespace hamza_http
         }
         catch (const std::exception &e)
         {
-            std::cerr << "Error occurred while ending HTTP response: " << e.what() << std::endl;
+            throw std::runtime_error("Error ending HTTP response: " + std::string(e.what()));
+        }
+    }
+
+    void http_response::send()
+    {
+
+        try
+        {
+            if (validate())
+            {
+                client_socket->send_on_connection(hamza::data_buffer(to_string()));
+            }
+            else
+            {
+                throw std::runtime_error("Invalid HTTP response or client connection may be already closed");
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Error sending HTTP response: " + std::string(e.what()));
         }
     }
 }

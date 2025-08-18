@@ -15,11 +15,7 @@ namespace hamza_http
      *
      * This class provides a complete HTTP server implementation that handles HTTP
      * request parsing, response generation, and connection management. It extends
-     * the tcp_server class to add HTTP-specific functionality including:
-     * - HTTP/1.1 request parsing (method, URI, headers, body)
-     * - Automatic response formatting and transmission
-     * - Connection lifecycle management
-     * - Flexible callback-based event handling
+     * the tcp_server class
      *
      * The server uses a callback-driven architecture where application logic
      * is implemented through user-provided callback functions. This allows
@@ -67,44 +63,51 @@ namespace hamza_http
         void on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message) override;
 
         /**
+         * @brief Handle HTTP request processing.
+         * @param request Parsed HTTP request object
+         * @param response HTTP response object to populate
+         */
+        virtual void on_request_received(http_request &request, http_response &response);
+
+        /**
          * @brief Handle server startup completion.
          * @note Calls user-provided listen success callback if set
          */
-        void on_server_listen() override;
+        virtual void on_server_listen() override;
 
         /**
          * @brief Handle server shutdown completion.
          * @note Calls user-provided server stopped callback if set
          */
-        void on_server_stopped() override;
+        virtual void on_server_stopped() override;
 
         /**
          * @brief Handle server exceptions and errors.
          * @param e Socket exception that occurred
          * @note Forwards to user-provided error callback if set
          */
-        void on_exception(std::shared_ptr<hamza::socket_exception> e) override;
+        virtual void on_exception(std::shared_ptr<hamza::socket_exception> e) override;
 
         /**
          * @brief Handle client disconnection events.
          * @param sock_ptr Client socket that disconnected
          * @note Calls user-provided client disconnect callback if set
          */
-        void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr) override;
+        virtual void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr) override;
 
         /**
          * @brief Handle new client connection events.
          * @param sock_ptr Newly connected client socket
          * @note Calls user-provided client connected callback if set
          */
-        void on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr) override;
+        virtual void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr) override;
 
         /**
          * @brief Handle server idle periods (select timeout).
          * @note Calls user-provided waiting callback if set
          * @note Useful for periodic maintenance tasks
          */
-        void on_waiting_for_activity() override;
+        virtual void on_waiting_for_activity() override;
 
     public:
         /**

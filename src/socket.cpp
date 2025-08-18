@@ -2,18 +2,65 @@
 #include <file_descriptor.hpp>
 #include <utilities.hpp>
 #include <exceptions.hpp>
+#include <iostream>
+#include <stdexcept>
+#include <cstring>
+
+// Platform-specific includes
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mstcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+// Windows doesn't have errno for socket operations, use WSAGetLastError()
+#define socket_errno() WSAGetLastError()
+#define SOCKET_WOULDBLOCK WSAEWOULDBLOCK
+#define SOCKET_AGAIN WSAEWOULDBLOCK
+#else
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <iostream>
-#include <stdexcept>
+#include <netinet/tcp.h>
 #include <unistd.h>
-#include <cstring>
 #include <fcntl.h>
 #include <errno.h>
+#define socket_errno() errno
+#define SOCKET_WOULDBLOCK EWOULDBLOCK
+#define SOCKET_AGAIN EAGAIN
+#endif
 
 namespace hamza
 {
+    /**
+     * Helper function to get cross-platform socket error message
+     */
+    static std::string get_socket_error_message()
+    {
+#ifdef _WIN32
+        return std::to_string(WSAGetLastError());
+#else
+        return std::string(strerror(errno));
+#endif
+    }
+
+    socket::socket(const Protocol &protocol = Protocol::UDP)
+        : protocol(protocol)
+    {
+        // Create socket: ::socket(domain, type, protocol)
+        // domain: AF_INET (IPv4) or AF_INET6 (IPv6)
+        // type: SOCK_STREAM (TCP) or SOCK_DGRAM (UDP)
+        // protocol: Usually 0 for default protocol
+        int socket_file_descriptor = ::socket(AF_INET, static_cast<int>(protocol), 0);
+
+        // Check if socket creation succeeded (returns -1 on failure)
+        if (!is_valid_socket(socket_file_descriptor))
+        {
+            throw socket_exception("Invalid File Descriptor", "SocketCreation", __func__);
+        }
+
+        fd = file_descriptor(socket_file_descriptor);
+    }
+
     /**
      * Creates a new socket and binds it to the specified address.
      * Uses ::socket() system call to create socket with given family and protocol.
@@ -152,7 +199,296 @@ namespace hamza
         // Returns 0 on success, -1 on error
         if (setsockopt(fd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
         {
-            throw socket_exception("Failed to set SO_REUSEADDR option: " + std::string(strerror(errno)), "SocketOption", __func__);
+            throw socket_exception("Failed to set SO_REUSEADDR option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets SO_BROADCAST socket option to enable/disable broadcast packets.
+     * Allows UDP sockets to send broadcast messages to entire network segments.
+     * Required for applications that need to send data to all hosts on a subnet.
+     * Only applicable to UDP sockets - TCP doesn't support broadcast.
+     */
+    void socket::set_broadcast(bool enable)
+    {
+        int optval = enable ? 1 : 0;
+
+        // SO_BROADCAST: allow sending broadcast packets
+        // Must be explicitly enabled for security reasons
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set SO_BROADCAST option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets multicast-related socket options for group communication.
+     * Enables/disables multicast loopback for sending multicast packets.
+     * When enabled, multicast packets sent by this socket will be looped back
+     * to the local host if it's a member of the multicast group.
+     * Used in multicast applications for efficient group communication.
+     */
+    void socket::set_multicast(bool enable)
+    {
+        int optval = enable ? 1 : 0;
+
+        if (addr.get_family() == family(IPV4))
+        {
+            // IP_MULTICAST_LOOP: control multicast loopback for IPv4
+            if (setsockopt(fd.get(), IPPROTO_IP, IP_MULTICAST_LOOP, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+            {
+                throw socket_exception("Failed to set IP_MULTICAST_LOOP option: " + get_socket_error_message(), "SocketOption", __func__);
+            }
+        }
+        else if (addr.get_family() == family(IPV6))
+        {
+            // IPV6_MULTICAST_LOOP: control multicast loopback for IPv6
+            if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+            {
+                throw socket_exception("Failed to set IPV6_MULTICAST_LOOP option: " + get_socket_error_message(), "SocketOption", __func__);
+            }
+        }
+    }
+
+    /**
+     * Sets IPV6_V6ONLY socket option to restrict IPv6 socket to IPv6 only.
+     * When enabled, prevents IPv6 sockets from accepting IPv4 connections.
+     * By default, IPv6 sockets can handle both IPv4 and IPv6 connections.
+     * Useful for applications that need separate handling of IPv4 and IPv6.
+     * Only applicable to IPv6 sockets.
+     */
+    void socket::set_ipv6_only(bool enable)
+    {
+        if (addr.get_family() != family(IPV6))
+        {
+            throw socket_exception("IPV6_V6ONLY option is only valid for IPv6 sockets", "ProtocolMismatch", __func__);
+        }
+
+        int optval = enable ? 1 : 0;
+
+        // IPV6_V6ONLY: restrict socket to IPv6 only (no IPv4-mapped addresses)
+        if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set IPV6_V6ONLY option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets socket to non-blocking or blocking mode.
+     * Non-blocking sockets return immediately from I/O operations even if no data
+     * is available, preventing the calling thread from being blocked.
+     * Uses fcntl() on UNIX/Linux or ioctlsocket() on Windows.
+     * Essential for implementing asynchronous I/O and event-driven servers.
+     */
+    void socket::set_non_blocking(bool enable)
+    {
+#ifdef _WIN32
+        // Windows implementation using ioctlsocket
+        u_long mode = enable ? 1 : 0;
+        if (ioctlsocket(fd.get(), FIONBIO, &mode) != 0)
+        {
+            throw socket_exception("Failed to set socket non-blocking mode: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+#else
+        // UNIX/Linux implementation using fcntl
+        // Get current file descriptor flags
+        int flags = fcntl(fd.get(), F_GETFL, 0);
+        if (flags == -1)
+        {
+            throw socket_exception("Failed to get socket flags: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+
+        // Modify O_NONBLOCK flag based on enable parameter
+        if (enable)
+        {
+            flags |= O_NONBLOCK; // Set non-blocking
+        }
+        else
+        {
+            flags &= ~O_NONBLOCK; // Clear non-blocking (set blocking)
+        }
+
+        // Apply modified flags back to file descriptor
+        if (fcntl(fd.get(), F_SETFL, flags) == -1)
+        {
+            throw socket_exception("Failed to set socket non-blocking mode: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+#endif
+    }
+
+    /**
+     * Sets SO_KEEPALIVE socket option to enable TCP keep-alive probes.
+     * When enabled, TCP automatically sends keep-alive packets to detect
+     * dead connections and clean up resources for broken connections.
+     * Helps detect network failures and unresponsive peers.
+     * Only applicable to TCP sockets - UDP is connectionless.
+     */
+    void socket::set_keep_alive(bool enable)
+    {
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("Keep-alive is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+
+        int optval = enable ? 1 : 0;
+
+        // SO_KEEPALIVE: enable TCP keep-alive probes
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set SO_KEEPALIVE option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets SO_LINGER socket option to control connection termination behavior.
+     * Controls what happens to unsent data when socket is closed.
+     * When enabled with timeout > 0: close() blocks until data sent or timeout expires.
+     * When enabled with timeout = 0: close() discards unsent data and sends RST.
+     * When disabled: close() returns immediately, system handles data transmission.
+     */
+    void socket::set_linger(bool enable, int timeout)
+    {
+        struct linger ling;
+        ling.l_onoff = enable ? 1 : 0;
+        ling.l_linger = timeout;
+
+        // SO_LINGER: control connection termination behavior
+        // struct linger contains: l_onoff (enable/disable), l_linger (timeout in seconds)
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_LINGER, &ling, sizeof(ling)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set SO_LINGER option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets SO_SNDBUF socket option to configure send buffer size.
+     * Controls the size of the kernel's send buffer for this socket.
+     * Larger buffers can improve performance for high-throughput applications
+     * but consume more memory. The kernel may adjust the value to system limits.
+     * Affects buffering behavior for both TCP and UDP sockets.
+     */
+    void socket::set_send_buffer_size(int size)
+    {
+        if (size <= 0)
+        {
+            throw socket_exception("Send buffer size must be positive", "InvalidParameter", __func__);
+        }
+
+        // SO_SNDBUF: set send buffer size
+        // Kernel may round up to nearest valid size
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set SO_SNDBUF option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets SO_RCVBUF socket option to configure receive buffer size.
+     * Controls the size of the kernel's receive buffer for this socket.
+     * Larger buffers can prevent data loss in high-throughput scenarios
+     * by providing more space for incoming data before application reads it.
+     * The kernel may adjust the value to system limits and alignment requirements.
+     */
+    void socket::set_receive_buffer_size(int size)
+    {
+        if (size <= 0)
+        {
+            throw socket_exception("Receive buffer size must be positive", "InvalidParameter", __func__);
+        }
+
+        // SO_RCVBUF: set receive buffer size
+        // Kernel may round up to nearest valid size
+        if (setsockopt(fd.get(), SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set SO_RCVBUF option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets TCP_NODELAY socket option to disable Nagle's algorithm.
+     * Nagle's algorithm combines small packets to improve network efficiency
+     * but can increase latency for interactive applications.
+     * When disabled (TCP_NODELAY enabled), packets are sent immediately
+     * regardless of size, reducing latency at cost of potential bandwidth efficiency.
+     * Only applicable to TCP sockets.
+     */
+    void socket::set_tcp_nodelay(bool enable)
+    {
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("TCP_NODELAY is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+
+        int optval = enable ? 1 : 0;
+
+        // TCP_NODELAY: disable Nagle's algorithm for immediate packet transmission
+        if (setsockopt(fd.get(), IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set TCP_NODELAY option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+    }
+
+    /**
+     * Sets TCP_QUICKACK socket option to enable quick ACK mode.
+     * Controls whether TCP should send ACKs immediately or use delayed ACKs.
+     * When enabled, ACKs are sent immediately upon receiving data packets.
+     * When disabled, TCP may delay ACKs to piggyback them on return data.
+     * Can reduce latency in request-response scenarios but may increase network traffic.
+     * Linux-specific option - not available on Windows or other platforms.
+     */
+    void socket::set_quick_ack(bool enable)
+    {
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("TCP_QUICKACK is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+
+#ifdef _WIN32
+        // Windows does not support TCP_QUICKACK equivalent
+        throw socket_exception("TCP_QUICKACK option not supported on Windows", "UnsupportedOption", __func__);
+#elif defined(TCP_QUICKACK)
+        // Linux implementation
+        int optval = enable ? 1 : 0;
+        if (setsockopt(fd.get(), IPPROTO_TCP, TCP_QUICKACK, &optval, sizeof(optval)) == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to set TCP_QUICKACK option: " + get_socket_error_message(), "SocketOption", __func__);
+        }
+#else
+        // Other UNIX systems that don't support TCP_QUICKACK
+        throw socket_exception("TCP_QUICKACK option not supported on this platform", "UnsupportedOption", __func__);
+#endif
+    }
+
+    /**
+     * Sets traffic class/Type of Service (ToS) for packet prioritization.
+     * For IPv4: Sets the ToS field in the IP header for QoS marking.
+     * For IPv6: Sets the Traffic Class field for flow classification.
+     * Used by routers and network equipment for traffic prioritization,
+     * bandwidth allocation, and Quality of Service (QoS) policies.
+     * Values typically follow DSCP (Differentiated Services Code Point) standards.
+     */
+    void socket::set_traffic_class(int value)
+    {
+        if (value < 0 || value > 255)
+        {
+            throw socket_exception("Traffic class value must be between 0 and 255", "InvalidParameter", __func__);
+        }
+
+        if (addr.get_family() == family(IPV4))
+        {
+            // IP_TOS: set Type of Service field in IPv4 header
+            if (setsockopt(fd.get(), IPPROTO_IP, IP_TOS, &value, sizeof(value)) == SOCKET_ERROR_VALUE)
+            {
+                throw socket_exception("Failed to set IP_TOS option: " + get_socket_error_message(), "SocketOption", __func__);
+            }
+        }
+        else if (addr.get_family() == family(IPV6))
+        {
+            // IPV6_TCLASS: set Traffic Class field in IPv6 header
+            if (setsockopt(fd.get(), IPPROTO_IPV6, IPV6_TCLASS, &value, sizeof(value)) == SOCKET_ERROR_VALUE)
+            {
+                throw socket_exception("Failed to set IPV6_TCLASS option: " + get_socket_error_message(), "SocketOption", __func__);
+            }
         }
     }
 
@@ -402,7 +738,7 @@ namespace hamza
     /**
      * returns the bound local address.
      */
-    socket_address socket::get_remote_address() const
+    socket_address socket::get_address() const
     {
         return addr;
     }

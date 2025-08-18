@@ -36,14 +36,20 @@ namespace hamza
         /// Maximum number of file descriptors (unused, kept for compatibility)
         int max_fds;
 
-        /// Highest file descriptor number for select() optimization
-        int max_fd;
-
-        /// Timeout structure for select() calls
-        struct timeval timeout;
-
         /// Mutex for thread-safe operations on fd_sets
         std::mutex mtx;
+
+        /// Timeout configuration for select() calls
+        int tv_sec;
+        int tv_usec;
+
+        struct timeval make_timeval(int seconds, int microseconds)
+        {
+            struct timeval timeout;
+            timeout.tv_sec = seconds;
+            timeout.tv_usec = microseconds;
+            return timeout;
+        }
 
     public:
         /**
@@ -60,7 +66,7 @@ namespace hamza
          * @note Thread-safe operation using internal mutex
          * @note select() requires knowing the highest fd + 1 for efficiency
          */
-        void set_max_fd(int max_fd);
+        // void set_max_fd(int max_fd);
 
         /**
          * @brief Configure timeout for select() operations.
@@ -68,7 +74,7 @@ namespace hamza
          * @note Sets microseconds component to 0
          * @note Timeout applies to all subsequent select() calls
          */
-        void set_timeout(int seconds);
+        void set_timeout(int seconds = 1, int microseconds = 0);
 
         /**
          * @brief Remove file descriptor from monitoring set.
@@ -97,11 +103,12 @@ namespace hamza
 
         /**
          * @brief Execute select() system call and wait for activity.
+         * @param next_available_fd The next available file descriptor to monitor
          * @return Number of file descriptors ready for I/O, 0 on timeout, -1 on error
          * @note Thread-safe operation using internal mutex
          * @note Copies master_fds to read_fds before calling select()
          * @note Uses configured timeout for blocking behavior
          */
-        int select();
+        int select(const int &next_available_fd);
     };
 };

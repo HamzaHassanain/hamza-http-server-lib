@@ -26,14 +26,6 @@ namespace hamza_http
             return;
         }
 
-        // Ensure request callback is configured before processing requests
-        if (!request_callback)
-        {
-            throw std::runtime_error("Request callback is not set.");
-            exit(1); // Fatal error - server cannot function without request handler
-            return;
-        }
-
         // Convert raw message to string stream for line-by-line parsing
         std::istringstream request_stream(message.to_string());
         std::ostringstream body_stream;
@@ -136,13 +128,17 @@ namespace hamza_http
         request.close_connection = close_connection_for_objects;
         response.close_connection = close_connection_for_objects;
 
-        // Set default connection header (HTTP/1.1 with connection close)
-        // Simplifies connection management by closing after each response
-        response.add_header("Connection", "close");
-
         // Invoke user-defined request handler with parsed request and response objects
         // User callback populates response and optionally closes connection
-        request_callback(request, response);
+        this->on_request_received(request, response);
+    }
+
+    void http_server::on_request_received(http_request &request, http_response &response)
+    {
+        if (request_callback)
+        {
+            request_callback(request, response);
+        }
     }
 
     /**
@@ -180,36 +176,27 @@ namespace hamza_http
 
     /**
      * Handle client disconnection events.
-     * FIXME: Bug - callback name collision with member variable.
-     * Should call client_disconnected_callback, not recursive call.
      */
     void http_server::on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr)
     {
-        // BUG: This creates infinite recursion - should be client_disconnected_callback
         if (client_disconnected_callback)
             client_disconnected_callback(sock_ptr);
     }
 
     /**
      * Handle new client connection events.
-     * FIXME: Bug - callback name collision with member variable.
-     * Should call client_connected_callback, not recursive call.
      */
-    void http_server::on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
+    void http_server::on_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
     {
-        // BUG: This creates infinite recursion - should be client_connected_callback
         if (client_connected_callback)
             client_connected_callback(sock_ptr);
     }
 
     /**
      * Handle server idle periods (select timeout events).
-     * FIXME: Bug - callback name collision with member variable.
-     * Should call waiting_for_activity_callback, not recursive call.
      */
     void http_server::on_waiting_for_activity()
     {
-        // BUG: This creates infinite recursion - should be waiting_for_activity_callback
         if (waiting_for_activity_callback)
             waiting_for_activity_callback();
     }

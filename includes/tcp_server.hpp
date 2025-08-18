@@ -50,13 +50,6 @@ namespace hamza
         std::mutex close_mutex;
 
         /**
-         * @brief Create timeout structure for select operations.
-         * @param seconds Timeout duration in seconds
-         * @return Configured timeval structure
-         */
-        struct timeval make_timeout(int seconds);
-
-        /**
          * @brief Remove client from server and cleanup resources.
          * @param sock_ptr Client socket to remove
          * @throws socket_exception with type "TCP_SERVER_ClientRemoval" for removal errors
@@ -90,6 +83,12 @@ namespace hamza
         tcp_server &operator=(tcp_server &&) = delete;
 
         /**
+         * @brief Get the local address of the server.
+         * @return Local socket address
+         */
+        std::string get_local_address() const;
+
+        /**
          * @brief Start the server and begin listening for connections.
          *
          * Begins the main server loop, handling new connections and client
@@ -108,13 +107,7 @@ namespace hamza
          * @param server Shared pointer to the TCP server instance
          * @note Safely stops the server and cleans up resources
          */
-        static void stop(std::shared_ptr<tcp_server> server)
-        {
-            if (server)
-            {
-                server->set_running_status(false);
-            }
-        }
+        void stop();
 
     protected:
         /**
@@ -146,7 +139,7 @@ namespace hamza
          * @note Default implementation does nothing
          * @note Called when a new client connects to the server
          */
-        virtual void on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr);
+        virtual void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr);
 
         /**
          * @brief Handle client disconnection (pure virtual).
@@ -214,7 +207,7 @@ namespace hamza
          * @brief Handle new incoming connection.
          * @throws socket_exception with type "TCP_SERVER_NewConnection" for connection errors
          * @throws socket_exception with type "TCP_SERVER_Accept" for accept operation errors
-         * @note Accepts connection, adds to client container, and calls on_new_client_connected()
+         * @note Accepts connection, adds to client container, and calls on_client_connected()
          */
         void handle_new_connection();
     };

@@ -24,9 +24,9 @@ namespace hamza
         // This file descriptor will be monitored for read activity
         FD_SET(FD, &master_fds);
 
-        // Set maximum file descriptor for select() efficiency
-        // select() scans from 0 to max_fd, so keeping this accurate improves performance
-        set_max_fd(FD);
+        // // Set maximum file descriptor for select() efficiency
+        // // select() scans from 0 to max_fd, so keeping this accurate improves performance
+        // set_max_fd(FD);
     }
 
     /**
@@ -34,14 +34,14 @@ namespace hamza
      * Sets seconds component and zeros microseconds for whole-second timeouts.
      * Timeout affects blocking behavior of subsequent select() calls.
      */
-    void select_server::set_timeout(int seconds)
+    void select_server::set_timeout(int seconds, int microseconds)
     {
         // Set seconds component of timeout structure
-        timeout.tv_sec = seconds;
+        tv_sec = seconds;
 
         // Set microseconds component to 0 (no fractional seconds)
         // For more precise timing, this could be configurable
-        timeout.tv_usec = 0;
+        tv_usec = microseconds;
     }
 
     /**
@@ -82,7 +82,7 @@ namespace hamza
      * Returns number of ready file descriptors or error conditions.
      * Thread-safe operation using mutex protection.
      */
-    int select_server::select()
+    int select_server::select(const int &next_available_fd)
     {
         // Acquire exclusive lock for thread safety
         std::lock_guard<std::mutex> lock(mtx);
@@ -92,8 +92,9 @@ namespace hamza
         // We preserve master_fds for future calls
         read_fds = master_fds;
 
+        auto timeout = make_timeval(tv_sec, tv_usec);
         // Call select() system call with parameters:
-        // - max_fd + 1: highest file descriptor number + 1
+        // - next_available_fd: next available file descriptor to monitor
         // - &read_fds: set to monitor for read activity
         // - nullptr: not monitoring write activity
         // - nullptr: not monitoring exceptional conditions
@@ -103,7 +104,7 @@ namespace hamza
         // - > 0: number of file descriptors ready for I/O
         // - 0: timeout occurred, no activity
         // - < 0: error occurred (check errno)
-        return ::select(max_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+        return ::select(next_available_fd, &read_fds, nullptr, nullptr, &timeout);
     }
 
     /**
@@ -111,15 +112,14 @@ namespace hamza
      * select() scans file descriptors from 0 to max_fd, so accuracy improves performance.
      * Thread-safe operation to prevent race conditions during updates.
      */
-    void select_server::set_max_fd(int max_fd)
-    {
-        // Acquire exclusive lock for thread safety
-        std::lock_guard<std::mutex> lock(mtx);
+    // void select_server::set_max_fd(int max_fd)
+    // {
+    //     // Acquire exclusive lock for thread safety
+    //     std::lock_guard<std::mutex> lock(mtx);
 
-        // Update maximum file descriptor value
-        // This should be the highest file descriptor currently being monitored
-        this->max_fd = max_fd;
-    }
+    //     // Update maximum file descriptor value
+    //     // This should be the highest file descriptor currently being monitored
+    // }
 
     /**
      * Check if specific file descriptor has pending read activity.

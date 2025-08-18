@@ -177,22 +177,20 @@ namespace hamza_http
         std::vector<std::string> get_trailer(const std::string &name) const;
 
         /**
-         * @brief Finalize and send the response.
-         *
-         * Validates the response, converts it to HTTP format, sends it
-         * to the client, and closes the connection. This method should
-         * be called when the response is complete and ready to send.
+         * @brief ends the response, closes the connection with the client
          *
          * @note After calling end(), the response object should not be
          *       used for further operations
-         *
-         * Example:
-         * @code
-         * response.set_body("Response complete");
-         * response.end();  // Send and close connection
-         * @endcode
          */
         void end();
+
+        /**
+         * @brief Send the HTTP response.
+         *
+         * This function sends the constructed HTTP response back to the client
+         * over the established socket connection.
+         */
+        void send();
 
         /// Default destructor
         ~http_response() = default;

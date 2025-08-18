@@ -35,23 +35,8 @@ namespace hamza
 
         // Set 1-second timeout for select() calls
         // Allows server to periodically check running status and handle shutdown gracefully
-        fd_select_server.set_timeout(1);
+        fd_select_server.set_timeout(1, 0);
     }
-
-    /**
-     * Creates timeout structure for select operations.
-     * Simple utility function to convert seconds to timeval structure.
-     * Used internally by select server for timeout configuration.
-     */
-    struct timeval tcp_server::make_timeout(int seconds)
-    {
-        struct timeval timeout;
-        timeout.tv_sec = seconds; // Seconds component
-        timeout.tv_usec = 0;      // Microseconds component (set to 0)
-
-        return timeout;
-    }
-
     /**
      * Safely removes client from server and performs cleanup.
      * Validates input parameters to prevent server socket removal or null pointer access.
@@ -63,7 +48,7 @@ namespace hamza
         try
         {
             // Prevent accidental removal of server socket (would break the server)
-            if (server_socket == sock_ptr)
+            if (server_socket == sock_ptr && this->get_running_status())
             {
                 throw std::runtime_error("Cannot remove server socket from clients.");
             }
@@ -92,9 +77,6 @@ namespace hamza
 
             // Recalculate maximum file descriptor for select() optimization
             // select() needs to know the highest-numbered file descriptor + 1
-            int server_fd = server_socket->get_file_descriptor_raw_value();
-            int max_client_fd = clients.max();
-            fd_select_server.set_max_fd(std::max(server_fd, max_client_fd));
 
             // Notify derived classes about client disconnection
             // Allows application-specific cleanup (logging, user notifications, etc.)
@@ -174,7 +156,7 @@ namespace hamza
             {
                 // Call select() to wait for activity on monitored file descriptors
                 // Returns: >0 (number of ready descriptors), 0 (timeout), <0 (error)
-                int activity = fd_select_server.select();
+                int activity = fd_select_server.select(clients.minimum_excluded_value(3));
 
                 if (activity < 0)
                 {
@@ -244,8 +226,8 @@ namespace hamza
 
             // Extract client address information for error reporting
             // Get IP address and port from remote endpoint
-            client_ip = sock_ptr->get_remote_address().get_ip_address().get();
-            client_port = std::to_string(sock_ptr->get_remote_address().get_port().get());
+            client_ip = sock_ptr->get_address().get_ip_address().get();
+            client_port = std::to_string(sock_ptr->get_address().get_port().get());
 
             // Receive data from client connection
             // TCP guarantees ordered, reliable delivery of data
@@ -291,16 +273,9 @@ namespace hamza
             // This allows select() to detect activity on this client socket
             fd_select_server.add_fd(client_socket_ptr->get_file_descriptor_raw_value());
 
-            // Update maximum file descriptor for select() efficiency
-            // select() requires knowing the highest file descriptor number + 1
-            const int server_fd = server_socket->get_file_descriptor_raw_value();
-            int max_client_fd = clients.max();
-            int max_fds = std::max(server_fd, max_client_fd);
-            fd_select_server.set_max_fd(max_fds);
-
             // Notify application layer about new client connection
             // Allows for welcome messages, authentication, logging, etc.
-            this->on_new_client_connected(client_socket_ptr);
+            this->on_client_connected(client_socket_ptr);
         }
         catch (const std::exception &e)
         {
@@ -320,6 +295,13 @@ namespace hamza
         run();
     }
 
+    /**
+     * Stop the TCP server.
+     */
+    void tcp_server::stop()
+    {
+        set_running_status(false);
+    }
     /**
      * Thread-safe client connection closure.
      * Uses mutex to ensure atomic operation during client removal.
@@ -343,11 +325,13 @@ namespace hamza
     {
         // Default implementation does nothing
         // Can be overridden by derived classes if needed
+        (void)sock_ptr;
     }
-    void tcp_server::on_new_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
+    void tcp_server::on_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
     {
         // Default implementation does nothing
         // Can be overridden by derived classes if needed
+        (void)sock_ptr;
     }
 
     /**
@@ -369,4 +353,14 @@ namespace hamza
     {
         running.store(status);
     }
+
+    std::string tcp_server::get_local_address() const
+    {
+        if (server_socket)
+        {
+            return server_socket->get_address().to_string();
+        }
+        return "Server socket not initialized";
+    }
+
 };

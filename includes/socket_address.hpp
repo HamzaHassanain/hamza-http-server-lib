@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <netinet/in.h>
 #include <memory>
 
 #include <ip_address.hpp>
@@ -104,6 +103,11 @@ namespace hamza
          * @return Address family object
          */
         family get_family() const { return family_id; }
+
+        std::string to_string() const
+        {
+            return address.get() + ":" + std::to_string(port_id.get());
+        }
 
         /**
          * @brief Get raw sockaddr pointer for system calls.

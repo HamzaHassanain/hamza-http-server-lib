@@ -4,6 +4,7 @@
 #include <socket.hpp>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -208,6 +209,36 @@ namespace hamza
                 max_fd = std::max(max_fd, sock->get_file_descriptor_raw_value());
             }
             return max_fd;
+        }
+
+        /**
+         * @brief Get the next available file descriptor, that is the mex (Minimum EXcluded value) starting from 3
+         * @return Next available file descriptor value
+         */
+        int minimum_excluded_value(const int &from) const
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+
+            if (from < 3 || from > 1024)
+            {
+                throw socket_exception("Invalid starting point for minimum_excluded_value. Must be between 3 and 1024.", "ClientsContainer", __func__);
+            }
+
+            std::vector<std::size_t> current_fds(from + 1);
+            std::iota(current_fds.begin(), current_fds.end(), 0); // Fill with 0, 1, ..., from
+            for (const auto &sock : sockets)
+            {
+                if (!sock)
+                    continue;
+                current_fds.push_back(sock->get_file_descriptor_raw_value());
+            }
+            std::sort(current_fds.begin(), current_fds.end());
+            for (std::size_t i = static_cast<std::size_t>(from); i < current_fds.size(); ++i)
+            {
+                if (current_fds[i] != i)
+                    return i;
+            }
+            return current_fds.size();
         }
 
         /**
