@@ -36,7 +36,11 @@ namespace hamza_http
     constexpr const char *HEADER_USER_AGENT = "User-Agent";
     constexpr const char *HEADER_ACCEPT = "Accept";
     constexpr const char *HEADER_AUTHORIZATION = "Authorization";
-    constexpr
+    constexpr const char *HEADER_REFERER = "Referer";
+    constexpr const char *HEADER_COOKIE = "Cookie";
+    constexpr const char *HEADER_IF_MODIFIED_SINCE = "If-Modified-Since";
+    constexpr const char *HEADER_IF_NONE_MATCH = "If-None-Match";
+    constexpr const char *HEADER_EXPECT = "Expect";
 
     // HTTP Line Endings
     constexpr const char *CRLF = "\r\n";

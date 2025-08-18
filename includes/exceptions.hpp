@@ -1,100 +1,82 @@
 #pragma once
+
 #include <stdexcept>
+#include <string>
 
 namespace hamza
 {
-
-    class general_socket_exception : public std::runtime_error
+    /**
+     * @brief Base exception class for all socket-related errors.
+     *
+     * This class serves as the base for all socket operation exceptions in the library.
+     * It extends std::runtime_error to provide a consistent exception hierarchy for
+     * socket programming errors. All derived exceptions inherit from this class,
+     * allowing for both specific and general exception handling.
+     *
+     * The class provides a virtual type() method that can be overridden by derived
+     * classes to provide specific exception type identification.
+     *
+     * Example usage:
+     * @code
+     * try {
+     *     // Socket operations that might fail
+     *     perform_socket_operation();
+     * }
+     * catch (const socket_exception& e) {
+     *     std::cerr << e.what() << std::endl;
+     * }
+     * @endcode
+     */
+    class socket_exception : public std::runtime_error
     {
+        std::string _type;
+        std::string _thrower_function;
+        mutable std::string _formatted_message; // Cache for formatted message
+
     public:
-        explicit general_socket_exception(const std::string &message)
-            : std::runtime_error(message) {}
+        /**
+         * @brief Construct exception with error message.
+         * @param message Descriptive error message explaining the socket failure
+         * @param type Type of the socket exception
+         * @param thrower_function Name of the function that threw the exception
+         */
+        explicit socket_exception(const std::string &message, const std::string &type, const std::string &thrower_function = "SOCKET_FUNCTION")
+            : std::runtime_error(message), _type(type), _thrower_function(thrower_function) {}
 
-        virtual std::string type() const noexcept
+        /**
+         * @brief Get the exception type name.
+         * @return C-style string identifying the exception type
+         */
+        virtual const char *type() const noexcept
         {
-            return "GeneralSocketException";
+            return _type.c_str();
         }
-    };
-    class server_listener_exception : public general_socket_exception
-    {
-    public:
-        explicit server_listener_exception(const std::string &message)
-            : general_socket_exception(message) {}
 
-        std::string type() const noexcept override
+        /**
+         * @brief Get the name of the function that threw the exception.
+         * @return C-style string identifying the thrower function
+         */
+        virtual const char *thrower_function() const noexcept
         {
-            return "ServerListenerException";
+            return _thrower_function.c_str();
         }
-    };
-    class server_accept_exception : public general_socket_exception
-    {
-    public:
-        explicit server_accept_exception(const std::string &message)
-            : general_socket_exception(message) {}
 
-        std::string type() const noexcept override
+        /**
+         * @brief Get the formatted error message string.
+         * @return C-style string containing the formatted error message
+         * @note Thread-safe and returns a persistent pointer to the formatted message
+         */
+        virtual const char *what() const noexcept override
         {
-            return "ServerAcceptException";
+            // Create formatted message once and cache it
+            if (_formatted_message.empty())
+            {
+                _formatted_message = "Socket Exception [" + _type + "] in " + _thrower_function + ": " + std::runtime_error::what();
+            }
+            return _formatted_message.c_str();
         }
+
+        /// Default virtual destructor
+        virtual ~socket_exception() = default;
     };
-    class client_connection_exception : public general_socket_exception
-    {
-    public:
-        explicit client_connection_exception(const std::string &message)
-            : general_socket_exception(message) {}
-
-        std::string type() const noexcept override
-        {
-            return "ClientConnectionException";
-        }
-    };
-
-    class client_remove_exception : public general_socket_exception
-    {
-    public:
-        explicit client_remove_exception(const std::string &message)
-            : general_socket_exception(message) {}
-
-        std::string type() const noexcept override
-        {
-            return "ClientRemoveException";
-        }
-    };
-
-    class client_activity_exception : public general_socket_exception
-    {
-    public:
-        explicit client_activity_exception(const std::string &message)
-            : general_socket_exception(message) {}
-
-        std::string type() const noexcept override
-        {
-            return "ClientActivityException";
-        }
-    };
-
-    class client_message_exception : public general_socket_exception
-    {
-    public:
-        explicit client_message_exception(const std::string &message)
-            : general_socket_exception(message) {}
-
-        std::string type() const noexcept override
-        {
-            return "ClientMessageException";
-        }
-    };
-
-    class client_disconnect_exception : public general_socket_exception
-    {
-    public:
-        explicit client_disconnect_exception(const std::string &message)
-            : general_socket_exception(message) {}
-
-        std::string type() const noexcept override
-        {
-            return "ClientDisconnectException";
-        }
-    };
-
-};
+}

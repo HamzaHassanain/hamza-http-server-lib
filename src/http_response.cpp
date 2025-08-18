@@ -1,74 +1,22 @@
-#include <http_objects.hpp>
+#include <http_response.hpp>
+#include <iostream>
+#include <sstream>
 
 namespace hamza_http
 {
-
-    http_request::http_request(const std::string &method, const std::string &uri, const std::string &version,
-                               const std::multimap<std::string, std::string> &headers,
-                               const std::string &body,
-                               std::shared_ptr<hamza::socket> client_socket)
-        : method(method), uri(uri), version(version), headers(headers), body(body), client_socket(client_socket) {}
-
-    void http_request::destroy(bool Isure)
-    {
-        if (!Isure)
-        {
-            throw std::runtime_error("Insure is false, cannot destroy request.");
-        }
-        close_connection(client_socket);
-        uri.clear();
-        headers.clear();
-        body.clear();
-        client_socket.reset();
-        body.clear();
-    }
-
-    std::string http_request::get_method() const
-    {
-        return method;
-    }
-
-    std::string http_request::get_uri() const
-    {
-        return uri;
-    }
-
-    std::string http_request::get_version() const
-    {
-        return version;
-    }
-
-    std::vector<std::string> http_request::get_header(const std::string &name) const
-    {
-        std::vector<std::string> values;
-        auto range = headers.equal_range(name);
-        for (auto it = range.first; it != range.second; ++it)
-        {
-            values.push_back(it->second);
-        }
-        return values;
-    }
-
-    std::vector<std::pair<std::string, std::string>> http_request::get_headers() const
-    {
-        std::vector<std::pair<std::string, std::string>> headers_vector;
-        for (const auto &header : headers)
-        {
-            headers_vector.emplace_back(header.first, header.second);
-        }
-        return headers_vector;
-    }
-
-    std::string http_request::get_body() const
-    {
-        return body;
-    }
-
-    // ========== http_response Implementation ==========
-
     http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
                                  std::shared_ptr<hamza::socket> client_socket)
         : version(version), headers(headers), client_socket(client_socket) {}
+
+    http_response::http_response(http_response &&other)
+        : version(std::move(other.version)), status_code(other.status_code),
+          status_message(std::move(other.status_message)), headers(std::move(other.headers)),
+          trailers(std::move(other.trailers)), body(std::move(other.body)),
+          client_socket(std::move(other.client_socket)), close_connection(std::move(other.close_connection))
+    {
+        other.status_code = 0;       // Invalidate the moved-from response
+        other.client_socket.reset(); // Reset the moved-from socket
+    }
 
     bool http_response::validate() const
     {
@@ -88,10 +36,12 @@ namespace hamza_http
     {
         std::ostringstream response_stream;
         response_stream << version << " " << status_code << " " << status_message << "\r\n";
+
         for (const auto &header : headers)
         {
             response_stream << header.first << ": " << header.second << "\r\n";
         }
+
         response_stream << "\r\n"
                         << body;
 
@@ -175,7 +125,6 @@ namespace hamza_http
     {
         try
         {
-
             if (validate())
             {
                 client_socket->send_on_connection(hamza::data_buffer(to_string()));
@@ -190,23 +139,5 @@ namespace hamza_http
         {
             std::cerr << "Error occurred while ending HTTP response: " << e.what() << std::endl;
         }
-    }
-
-    http_response::http_response(http_response &&other)
-        : version(std::move(other.version)), status_code(other.status_code),
-          status_message(std::move(other.status_message)), headers(std::move(other.headers)),
-          trailers(std::move(other.trailers)), body(std::move(other.body)),
-          client_socket(std::move(other.client_socket)), close_connection(std::move(other.close_connection))
-    {
-        other.status_code = 0;       // Invalidate the moved-from response
-        other.client_socket.reset(); // Reset the moved-from socket
-    }
-
-    http_request::http_request(http_request &&other)
-        : method(std::move(other.method)), uri(std::move(other.uri)), version(std::move(other.version)),
-          headers(std::move(other.headers)), body(std::move(other.body)),
-          client_socket(std::move(other.client_socket)), close_connection(std::move(other.close_connection))
-    {
-        other.client_socket.reset(); // Reset the moved-from socket
     }
 }
