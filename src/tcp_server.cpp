@@ -8,6 +8,7 @@
 #include <cstring>
 #include <algorithm>
 
+#include <csignal>
 namespace hamza
 {
     /**
@@ -39,6 +40,9 @@ namespace hamza
         // Set timeout_seconds timeout for select() calls
         // Allows server to periodically check running status and handle shutdown gracefully
         fd_select_server.set_timeout(timeout_seconds, timeout_microseconds);
+
+        // Ignore SIGPIPE signals, broken pipe won't kill the server
+        std::signal(SIGPIPE, SIG_IGN);
     }
     /**
      * Safely removes client from server and performs cleanup.
@@ -313,7 +317,7 @@ namespace hamza
      */
     void tcp_server::close_connection(std::shared_ptr<hamza::socket> sock_ptr)
     {
-        // Use lock guard for automatic mutex management (RAII)
+        // Use lock guard for automatic mutex management
         std::lock_guard<std::mutex> lock(close_mutex);
         remove_client(sock_ptr);
     }

@@ -5,7 +5,6 @@ A high-performance, cross-platform HTTP server library written in C++17. This li
 ## Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
 
 - [Fundamental Networking Concepts](#fundamental-networking-concepts)
 - [Quick Start application](#quick-start-application)
@@ -37,16 +36,6 @@ A high-performance, cross-platform HTTP server library written in C++17. This li
 ## Overview
 
 This library provides a modern C++17 implementation of an HTTP server built on fundamental networking principles. It abstracts away the complexity of low-level socket programming while providing full control over HTTP request/response handling. The library implements a complete networking stack from raw sockets up to HTTP protocol handling, making it suitable for both educational purposes and production applications.
-
-## Features
-
-- **Cross-platform**: Supports Windows, Linux, and Unix-like systems
-- **Modern C++17**: Leverages modern C++ features and best practices
-- **Thread-safe**: Built with concurrency in mind using mutexes and RAII
-- **Memory-safe**: Uses smart pointers and RAII for automatic resource management
-- **HTTP/1.1 support**: Full HTTP request/response handling
-- **Select-based I/O**: Efficient event-driven networking using select()
-- **Exception handling**: Comprehensive error handling with custom exception types
 
 ## Fundamental Networking Concepts
 

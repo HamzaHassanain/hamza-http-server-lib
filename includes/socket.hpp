@@ -16,6 +16,8 @@
 #include <utilities.hpp>
 #include <exceptions.hpp>
 
+#include <mutex>
+
 namespace hamza
 {
     /**
@@ -49,6 +51,9 @@ namespace hamza
 
         /// Protocol type (TCP or UDP)
         Protocol protocol;
+
+        /// Mutex for thread-safe access
+        mutable std::mutex mtx;
 
         /**
          * @brief Create socket from existing file descriptor.

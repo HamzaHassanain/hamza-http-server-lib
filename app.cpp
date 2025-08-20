@@ -12,19 +12,26 @@ int main()
         return 1;
     }
 
-    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 12345, 0, 500000);
+    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 12345, 0, 50000);
     int ReqCnt = 0;
     using reqT = hamza_http::http_request;
     using resT = hamza_http::http_response;
     using req = hamza_http::http_request;
     using res = hamza_http::http_response;
 
-    auto handler_function = [&ReqCnt]([[maybe_unused]] std::shared_ptr<reqT> request, std::shared_ptr<resT> response)
+    std::mutex mtx;
+    auto log_cnt = [&ReqCnt, &mtx]()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        std::cout << "Request count: " << ReqCnt << std::endl;
+        ReqCnt++;
+    };
+
+    auto handler_function = [&log_cnt]([[maybe_unused]] std::shared_ptr<reqT> request, std::shared_ptr<resT> response)
     {
         // Handle the request and prepare the response
         try
         {
-
             std::string your_headers;
             for (const auto &[key, value] : request->get_headers())
             {
@@ -36,7 +43,6 @@ int main()
             response->add_header("Connection", "close");
 
             response->set_body(your_headers);
-            ReqCnt++;
             response->send();
             response->end();
         }
@@ -45,7 +51,6 @@ int main()
             std::cerr << "Error handling request: " << e.what() << std::endl;
             response->set_status(500, "Internal Server Error");
             response->set_body("An error occurred while processing your request.");
-            response->send();
             response->end();
         }
     };
@@ -65,34 +70,27 @@ int main()
         std::cerr << "Server error occurred: " << e->what() << std::endl;
     };
 
-    auto client_connected_callback = [](std::shared_ptr<hamza::socket> sock_ptr)
-    {
-        std::cout << "New client connected: " << sock_ptr->get_remote_address() << std::endl;
-    };
-
-    auto client_disconnected_callback = [](std::shared_ptr<hamza::socket> sock_ptr)
-    {
-        std::cout << "Client disconnected: " << sock_ptr->get_remote_address() << std::endl;
-    };
-
     auto listen_success_callback = []()
     {
         std::cout << "Server is listening ...." << std::endl;
     };
 
-    auto waiting_for_activity_callback = []()
+    auto on_client_connect = [](const std::shared_ptr<hamza::socket> &client_socket)
     {
-        std::cout << "." << std::flush;
+        std::cout << "Client connected: " << client_socket->get_remote_address() << std::endl;
+    };
+
+    auto on_client_disconnect = [](const std::shared_ptr<hamza::socket> &client_socket)
+    {
+        std::cout << "Client disconnected: " << client_socket->get_remote_address() << std::endl;
     };
 
     server->set_request_callback(request_callback);
     server->set_server_stopped_callback(server_stopped_callback);
     server->set_error_callback(server_error_callback);
-    server->set_client_connected_callback(client_connected_callback);
-    server->set_client_disconnected_callback(client_disconnected_callback);
     server->set_listen_success_callback(listen_success_callback);
-    server->set_waiting_for_activity_callback(waiting_for_activity_callback);
-
+    server->set_client_connected_callback(on_client_connect);
+    server->set_client_disconnected_callback(on_client_disconnect);
     server->listen();
     hamza::cleanup_socket_library();
 
