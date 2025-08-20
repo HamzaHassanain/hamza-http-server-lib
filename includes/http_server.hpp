@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bits/stdc++.h>
 #include <socket_address.hpp>
 #include <http_message_handler.hpp>
 #include <socket.hpp>
@@ -30,7 +29,6 @@ namespace hamza_http
     class http_server : public hamza::tcp_server
     {
     private:
-
         http_message_handler handler;
 
         /// Callback for handling HTTP requests and generating responses

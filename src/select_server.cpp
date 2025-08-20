@@ -1,5 +1,13 @@
 #include <select_server.hpp>
+
+// Platform-specific includes for select() functionality
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/select.h>
+#include <sys/time.h>
+#endif
 
 namespace hamza
 {
@@ -93,8 +101,13 @@ namespace hamza
         read_fds = master_fds;
 
         auto timeout = make_timeval(tv_sec, tv_usec);
-        // Call select() system call with parameters:
-        // - next_available_fd: next available file descriptor to monitor
+
+        // Call select() system call with cross-platform considerations:
+        // Windows: First parameter is ignored, can pass 0
+        // Unix/Linux: First parameter should be highest fd + 1
+        //
+        // Parameters:
+        // - next_available_fd: next available file descriptor to monitor (ignored on Windows)
         // - &read_fds: set to monitor for read activity
         // - nullptr: not monitoring write activity
         // - nullptr: not monitoring exceptional conditions
@@ -103,8 +116,14 @@ namespace hamza
         // Returns:
         // - > 0: number of file descriptors ready for I/O
         // - 0: timeout occurred, no activity
-        // - < 0: error occurred (check errno)
+        // - < 0: error occurred (check errno on Unix, WSAGetLastError() on Windows)
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        // Windows: First parameter is ignored, can pass 0
+        return ::select(0, &read_fds, nullptr, nullptr, &timeout);
+#else
+        // Unix/Linux: First parameter should be highest fd + 1 for efficiency
         return ::select(next_available_fd, &read_fds, nullptr, nullptr, &timeout);
+#endif
     }
 
     /**

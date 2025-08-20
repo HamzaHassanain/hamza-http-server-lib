@@ -2,6 +2,8 @@
 #include <utilities.hpp>
 #include <iostream>
 #include <sstream>
+#include <memory>
+#include <map>
 
 namespace hamza_http
 {

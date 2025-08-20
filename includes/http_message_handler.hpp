@@ -7,6 +7,7 @@
 #include <memory>
 #include <map>
 #include <mutex>
+#include <sstream>
 namespace hamza_http
 {
 
