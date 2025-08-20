@@ -41,7 +41,7 @@ namespace hamza
         clients_container clients;
 
         /// Server socket for accepting new connections
-        std::shared_ptr<hamza::socket> server_socket;
+        std::unique_ptr<hamza::socket> server_socket;
 
         /// Atomic flag indicating server running state
         std::atomic<bool> running{false};
@@ -86,7 +86,7 @@ namespace hamza
          * @brief Get the local address of the server.
          * @return Local socket address
          */
-        std::string get_local_address() const;
+        socket_address get_remote_address() const;
 
         /**
          * @brief Start the server and begin listening for connections.
@@ -119,35 +119,19 @@ namespace hamza
         void close_connection(std::shared_ptr<hamza::socket> sock_ptr);
 
         /**
+         * @brief Close server socket safely.
+         * @throw socket_exception with type "TCP_SERVER_SocketClose" for closure errors
+         * @throw socket_exception with type "TCP_SERVER_CloseWhileRunning" if you close while the server is still running
+         */
+        void close_server_socket();
+
+        /**
          * @brief Handle incoming message from client (pure virtual).
          * @param sock_ptr Client socket that sent the message
          * @param message Received data buffer
          * @note Must be implemented by derived classes
          */
         virtual void on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message) = 0;
-
-        /**
-         * @brief Called when server is waiting for activity.
-         * @note Default implementation does nothing
-         * @note Called when the server is idle and waiting for client activity
-         */
-        virtual void on_waiting_for_activity();
-
-        /**
-         * @brief Handle new client connection (pure virtual).
-         * @param sock_ptr Newly connected client socket
-         * @note Default implementation does nothing
-         * @note Called when a new client connects to the server
-         */
-        virtual void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr);
-
-        /**
-         * @brief Handle client disconnection (pure virtual).
-         * @param sock_ptr Client socket that disconnected
-         * @note Must be implemented by derived classes
-         * @note Called when a client disconnects from the server
-         */
-        virtual void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr);
 
         /**
          * @brief Handle server exceptions (pure virtual).
@@ -158,18 +142,44 @@ namespace hamza
         virtual void on_exception(std::shared_ptr<hamza::socket_exception> e) = 0;
 
         /**
-         * @brief Called when server starts listening (pure virtual).
-         * @note Must be implemented by derived classes
-         * @note Called once before entering main server loop
+         * @brief Called when server is waiting for activity.
+         * @note Default implementation does nothing
+         * @note Called when the server is idle and waiting for client activity
          */
-        virtual void on_server_listen() = 0;
+        virtual void on_waiting_for_activity();
 
         /**
-         * @brief Called when server stops (pure virtual).
-         * @note Must be implemented by derived classes
+         * @brief Handle new client connection (virtual).
+         * @param sock_ptr Newly connected client socket
+         * @note Default implementation does nothing
+         * @note Called when a new client connects to the server
+         */
+        virtual void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr);
+
+        /**
+         * @brief Handle client disconnection (virtual).
+         * @param sock_ptr Client socket that disconnected
+         * @note Can be implemented by derived classes
+         * @note Default implementation does nothing
+         * @note Called when a client disconnects from the server
+         */
+        virtual void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr);
+
+        /**
+         * @brief Called when server starts listening (virtual).
+         * @note Can be implemented by derived classes
+         * @note Default implementation does nothing
+         * @note Called once before entering main server loop
+         */
+        virtual void on_server_listen() {};
+
+        /**
+         * @brief Called when server stops (virtual).
+         * @note Can be implemented by derived classes
+         * @note Default implementation does nothing
          * @note Called after exiting main server loop
          */
-        virtual void on_server_stopped() = 0;
+        virtual void on_server_stopped() {};
 
         /**
          * @brief Get current server running status.

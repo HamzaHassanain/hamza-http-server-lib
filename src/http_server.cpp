@@ -21,7 +21,7 @@ namespace hamza_http
 
     void http_server::on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message)
     {
-        // std::cout << "client: " << sock_ptr->get_address().to_string() << std::endl;
+        // std::cout << "client: " << sock_ptr->get_remote_address().to_string() << std::endl;
         auto [completed, method, uri, version, headers, body] = handler.handle(sock_ptr, message);
 
         if (!completed)
@@ -43,7 +43,7 @@ namespace hamza_http
 
         // Invoke user-defined request handler with parsed request and response objects
         // User callback populates response and optionally closes connection
-        std::cout << sock_ptr->get_address().to_string() << " " << body.size() << std::endl;
+        std::cout << sock_ptr->get_remote_address().to_string() << " " << body.size() << std::endl;
         this->on_request_received(request, response);
     }
 

@@ -5,13 +5,13 @@
 
 int main(int argc, char **argv)
 {
+    if (!hamza::initialize_socket_library())
+    {
+        std::cerr << "Failed to initialize socket library\n";
+        return 1;
+    }
     try
     {
-        if (!hamza::initialize_socket_library())
-        {
-            std::cerr << "Failed to initialize socket library\n";
-            return 1;
-        }
 
         // CLI: ./udp_client [server_ip] [server_port]
         std::string server_ip = (argc > 1) ? argv[1] : "127.0.0.1";
@@ -41,8 +41,6 @@ int main(int argc, char **argv)
         {
             std::cout << "No data received (zero-length)\n";
         }
-
-        hamza::cleanup_socket_library();
     }
     catch (const hamza::socket_exception &e)
     {
@@ -55,5 +53,6 @@ int main(int argc, char **argv)
         return 3;
     }
 
+    hamza::cleanup_socket_library();
     return 0;
 }

@@ -744,7 +744,7 @@ namespace hamza
     /**
      * returns the bound local address.
      */
-    socket_address socket::get_address() const
+    socket_address socket::get_remote_address() const
     {
         return addr;
     }

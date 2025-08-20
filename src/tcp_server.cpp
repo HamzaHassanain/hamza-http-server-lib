@@ -20,7 +20,7 @@ namespace hamza
     {
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
-        server_socket = std::make_shared<hamza::socket>(hamza::Protocol::TCP);
+        server_socket = std::make_unique<hamza::socket>(hamza::Protocol::TCP);
         server_socket->set_reuse_address(true);
         server_socket->set_non_blocking(true);
         server_socket->bind(addr);
@@ -50,11 +50,6 @@ namespace hamza
     {
         try
         {
-            // Prevent accidental removal of server socket (would break the server)
-            if (server_socket == sock_ptr && this->get_running_status())
-            {
-                throw std::runtime_error("Cannot remove server socket from clients.");
-            }
 
             // Ensure server socket is properly initialized
             if (server_socket == nullptr)
@@ -200,7 +195,7 @@ namespace hamza
             clients.clear();
 
             // close the server socket
-            this->close_connection(server_socket);
+            this->close_server_socket();
 
             // Notify derived classes that server has stopped
             this->on_server_stopped();
@@ -234,8 +229,8 @@ namespace hamza
 
             // Extract client address information for error reporting
             // Get IP address and port from remote endpoint
-            client_ip = sock_ptr->get_address().get_ip_address().get();
-            client_port = std::to_string(sock_ptr->get_address().get_port().get());
+            client_ip = sock_ptr->get_remote_address().get_ip_address().get();
+            client_port = std::to_string(sock_ptr->get_remote_address().get_port().get());
 
             // Receive data from client connection
             // TCP guarantees ordered, reliable delivery of data
@@ -362,13 +357,34 @@ namespace hamza
         running.store(status);
     }
 
-    std::string tcp_server::get_local_address() const
+    socket_address tcp_server::get_remote_address() const
     {
         if (server_socket)
         {
-            return server_socket->get_address().to_string();
+            return server_socket->get_remote_address();
         }
-        return "Server socket not initialized";
+        return socket_address();
+    }
+
+    void tcp_server::close_server_socket()
+    {
+        std::lock_guard<std::mutex> lock(close_mutex);
+        // Ensure server socket is initialized before attempting closure
+        if (!server_socket)
+        {
+            throw hamza::socket_exception("Server socket is not initialized.", "TCP_SERVER_SocketClose", __func__);
+        }
+
+        // Check if server is still running
+        if (get_running_status())
+        {
+            throw hamza::socket_exception("Cannot close server socket while server is running.", "TCP_SERVER_CloseWhileRunning", __func__);
+        }
+
+        // Close the server socket and release resources
+        fd_select_server.remove_fd(server_socket->get_file_descriptor_raw_value());
+        server_socket->disconnect();
+        server_socket.reset();
     }
 
 };

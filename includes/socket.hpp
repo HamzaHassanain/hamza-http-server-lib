@@ -295,6 +295,7 @@ namespace hamza
 
         /**
          * @brief Accept incoming connection (TCP only).
+         * @param NON_BLOCKING Whether to use non-blocking accept for clients (default: true)
          * @return Shared pointer to new socket for the accepted connection
          * @throws socket_exception with type "ProtocolMismatch" if called on non-TCP socket
          * @throws socket_exception with type "SocketAcceptance" if accept operation fails
@@ -324,7 +325,7 @@ namespace hamza
          * @brief Get remote endpoint address.
          * @return Socket address of remote endpoint
          */
-        socket_address get_address() const;
+        socket_address get_remote_address() const;
 
         /**
          * @brief Get raw file descriptor value.

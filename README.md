@@ -8,11 +8,11 @@ A high-performance, cross-platform HTTP server library written in C++17. This li
 - [Features](#features)
 
 - [Fundamental Networking Concepts](#fundamental-networking-concepts)
+- [Quick Start application](#quick-start-application)
 - [Building the Project](#building-the-project)
 
   - [Prerequisites](#prerequisites)
-  - [How to Build (from scratch)](#how-to-build)
-
+  - [How to Build](#how-to-build)
     - [Prerequisites](#prerequisites-1)
       - [For Linux (Ubuntu/Debian)](#for-linux-ubuntudebian)
       - [For Linux (CentOS/RHEL/Fedora)](#for-linux-centosrhelfedora)
@@ -185,6 +185,8 @@ auto client_socket = server_socket.accept();
 client_socket.send_on_connection(response_data);
 ```
 
+**The tcp_server abstract class**
+
 ### What is HTTP (HyperText Transfer Protocol)?
 
 **HTTP** is an application-layer protocol built on top of TCP for transferring web content.
@@ -220,14 +222,57 @@ Hello, World!              ← Body
 
    ```cpp
    // TCP layer receives raw bytes
+   // then signals the derived class of an incomming message from the connection, gives it a pointer to the socket that sends the message
    hamza::data_buffer raw_data = socket.receive_on_connection();
+   this->on_message_received(sock_ptr, raw_data);
    ```
 
-2. **HTTP Parsing**:
+2. **HTTP Request Parsing**:
+
+   since the http server is just a derived class of the main tcp server, it is responsible for parsing the raw data, and making sure
+   that the full http request is received properly, that all is done in the `on_message_received` method.
 
    ```cpp
-   // Our http_server parses the raw data into HTTP objects
-   http_request request(method, uri, version, headers, body, socket);
+   void http_server::on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message)
+   {
+       // Parse the raw TCP data into HTTP components
+       auto handled_data = handler.handle(sock_ptr, message);
+
+       if (!handled_data.is_complete())
+           return; // Wait for more data across multiple TCP packets
+
+       // Create HTTP request/response objects and invoke user callback
+       http_request request(handled_data.method, handled_data.uri, handled_data.version,
+                           handled_data.headers, handled_data.body, sock_ptr);
+       http_response response("HTTP/1.1", {}, sock_ptr);
+       this->on_request_received(request, response);
+   }
+   ```
+
+   **HTTP Parsing Features:**
+
+   - **Stateful Parsing**: Handles HTTP requests split across multiple TCP packets
+   - **Thread-Safe**: Concurrent request parsing with mutex protection
+   - **Multiple Encoding Support**:
+     - **Content-Length**: Fixed-size request bodies
+     - **Chunked Transfer**: Variable-size streaming bodies
+   - **RFC Compliance**: Proper HTTP/1.1 header parsing and validation
+   - **Memory Efficient**: Automatic cleanup of completed requests
+   - **Error Resilient**: Graceful handling of malformed input
+
+   **Parse Flow:**
+
+   1. **Request Line**: Extract HTTP method, URI path, and version
+   2. **Headers**: Parse all headers into a multimap (supports duplicates)
+   3. **Body Length Detection**: Determine body size via Content-Length or chunked encoding
+   4. **Body Accumulation**: Collect body data across multiple TCP packets if needed
+   5. **Completion Check**: Return complete HTTP request when all data received
+
+   The parser maintains per-client state using the remote socket address as a unique key, allowing
+   concurrent handling of multiple incomplete requests from different clients.
+
+   ```
+
    ```
 
 3. **HTTP Response Building**:
@@ -240,9 +285,12 @@ Hello, World!              ← Body
    ```
 
 4. **HTTP Response Transmission**:
+
    ```cpp
    // Library converts response to raw TCP data and sends
-   response.end(); // Formats and sends via TCP socket
+
+   response.send(); // Formats and sends via TCP socket
+   response.end(); // ends the connection, and releases resources
    ```
 
 **Complete Flow in Our Library:**
@@ -266,8 +314,6 @@ Hello, World!              ← Body
 - Standard networking libraries (automatically linked)
 
 ### How to build
-
-## Beginner's Guide: Building from Scratch
 
 This guide will walk you through cloning, building, and running the project on both Linux and Windows systems.
 
@@ -317,7 +363,7 @@ Open your terminal (Linux) or Command Prompt/PowerShell (Windows):
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/hamza-http-server-lib.git
+git clone https://github.com/HamzaHassanain/hamza-http-server-lib.git
 
 # Navigate to the project directory
 cd hamza-http-server-lib
@@ -415,7 +461,6 @@ cd build
 cmake ..
 cmake --build . --config Release
 
-# Or open the generated .sln file in Visual Studio
 ```
 
 **Using MinGW:**

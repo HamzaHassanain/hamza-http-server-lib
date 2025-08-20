@@ -19,7 +19,7 @@ namespace hamza_http
         http_handled_data handle(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message)
         {
             std::lock_guard<std::mutex> lock(data_mutex);
-            auto socket_key = sock_ptr->get_address().to_string();
+            auto socket_key = sock_ptr->get_remote_address().to_string();
 
             if (under_handling_data.find(socket_key) != under_handling_data.end())
             {
