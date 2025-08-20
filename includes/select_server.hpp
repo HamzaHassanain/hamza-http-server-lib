@@ -90,6 +90,7 @@ namespace hamza
         /**
          * @brief Configure timeout for select() operations.
          * @param seconds Timeout duration in seconds (0 for non-blocking)
+         * @param microseconds Timeout duration in microseconds (0 for whole seconds)
          * @note Sets microseconds component to 0
          * @note Timeout applies to all subsequent select() calls
          */

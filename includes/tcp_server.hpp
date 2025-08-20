@@ -69,12 +69,14 @@ namespace hamza
         /**
          * @brief Construct TCP server bound to specified address.
          * @param addr Socket address to bind server to
+         * @param timeout_seconds Timeout duration in seconds for select() calls
+         * @param timeout_microseconds Timeout duration in microseconds for select() calls
          * @throws socket_exception with type "SocketCreation" if socket creation fails
          * @throws socket_exception with type "SocketBinding" if binding fails
          * @throws socket_exception with type "SocketListening" if listen operation fails
-         * @note Automatically configures select server with 1-second timeout
+         * @note Automatically configures select server with specified timeouts
          */
-        explicit tcp_server(const hamza::socket_address &addr);
+        explicit tcp_server(const hamza::socket_address &addr, int timeout_seconds = 1, int timeout_microseconds = 0);
 
         // Copy and move operations - DELETED for resource safety
         tcp_server(const tcp_server &) = delete;

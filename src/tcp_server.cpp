@@ -14,9 +14,9 @@ namespace hamza
      * Initializes TCP server and binds to specified address.
      * Creates server socket with SO_REUSEADDR option to avoid "Address already in use" errors.
      * Sets up select-based I/O multiplexing for handling multiple clients concurrently.
-     * Configures 1-second timeout for select operations to allow periodic server status checks.
+     * Configures timeout_seconds and timeout_microseconds for select operations to allow periodic server status checks.
      */
-    tcp_server::tcp_server(const hamza::socket_address &addr)
+    tcp_server::tcp_server(const hamza::socket_address &addr, int timeout_seconds, int timeout_microseconds)
     {
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
@@ -36,9 +36,9 @@ namespace hamza
         // This sets up the fd_set structures and maximum file descriptor tracking
         fd_select_server.init(server_socket->get_file_descriptor_raw_value());
 
-        // Set 1-second timeout for select() calls
+        // Set timeout_seconds timeout for select() calls
         // Allows server to periodically check running status and handle shutdown gracefully
-        fd_select_server.set_timeout(1, 0);
+        fd_select_server.set_timeout(timeout_seconds, timeout_microseconds);
     }
     /**
      * Safely removes client from server and performs cleanup.

@@ -115,10 +115,12 @@ namespace hamza_http
         /**
          * @brief Construct HTTP server bound to specified socket address.
          * @param addr Socket address (IP and port) to bind server to
+         * @param timeout_seconds Timeout duration in seconds for select() calls
+         * @param timeout_microseconds Timeout duration in microseconds for select() calls
          * @throws socket_exception for socket creation, binding, or listening errors
          * @note Inherits all TCP server functionality and error handling
          */
-        explicit http_server(const hamza::socket_address &addr);
+        explicit http_server(const hamza::socket_address &addr, int timeout_seconds = 1, int timeout_microseconds = 0);
 
         /**
          * @brief Construct HTTP server with IP address and port.
@@ -128,8 +130,8 @@ namespace hamza_http
          * @note Convenience constructor that creates socket_address internally
          * @note Defaults to IPv4 address family
          */
-        http_server(const std::string &ip, int port)
-            : http_server(hamza::socket_address(hamza::ip_address(ip), hamza::port(port), hamza::family(hamza::IPV4))) {}
+        explicit http_server(const std::string &ip, int port, int timeout_seconds = 1, int timeout_microseconds = 0)
+            : http_server(hamza::socket_address(hamza::ip_address(ip), hamza::port(port), hamza::family(hamza::IPV4)), timeout_seconds, timeout_microseconds) {}
 
         // Copy and move operations - DELETED for resource safety
         http_server(const http_server &) = delete;

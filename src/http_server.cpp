@@ -10,13 +10,12 @@ namespace hamza_http
      * Delegates socket creation, binding, and listening to parent class.
      * HTTP-specific functionality is added through callback overrides.
      */
-    http_server::http_server(const hamza::socket_address &addr) : hamza::tcp_server(addr) {}
+    http_server::http_server(const hamza::socket_address &addr, int timeout_seconds, int timeout_microseconds) : hamza::tcp_server(addr, timeout_seconds, timeout_microseconds) {}
 
     /**
      * Parse complete HTTP request and invoke user-defined request handler.
      * Implements HTTP/1.1 request parsing including method, URI, headers, and body.
      * Creates request/response objects and provides connection management functions.
-     * Automatically closes connection for empty messages (client disconnect).
      */
 
     void http_server::on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message)
@@ -51,6 +50,10 @@ namespace hamza_http
         {
             request_callback(request, response);
         }
+        else
+        {
+            throw std::runtime_error("No request handler registered");
+        }
     }
 
     /**
@@ -83,7 +86,13 @@ namespace hamza_http
     void http_server::on_exception(std::shared_ptr<hamza::socket_exception> e)
     {
         if (error_callback)
+        {
             error_callback(e);
+        }
+        else
+        {
+            throw std::runtime_error("No error handler registered");
+        }
     }
 
     /**
