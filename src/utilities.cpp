@@ -306,6 +306,8 @@ namespace hamza
         // Unix/Linux treats sockets as file descriptors
         // Uses standard close() system call
         close(socket);
+        // makesure the fd is closed and reusable
+
 #endif
     }
 

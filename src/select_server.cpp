@@ -122,7 +122,7 @@ namespace hamza
         return ::select(0, &read_fds, nullptr, nullptr, &timeout);
 #else
         // Unix/Linux: First parameter should be highest fd + 1 for efficiency
-        return ::select(8192, &read_fds, nullptr, nullptr, &timeout);
+        return ::select(2048, &read_fds, nullptr, nullptr, &timeout);
 #endif
     }
 

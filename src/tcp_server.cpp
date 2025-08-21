@@ -22,13 +22,13 @@ namespace hamza
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
         server_socket = std::make_unique<hamza::socket>(hamza::Protocol::TCP);
-        // server_socket->set_reuse_address(true);
+        server_socket->set_reuse_address(true);
         server_socket->set_non_blocking(true);
         server_socket->bind(addr);
 
         // Put socket into listening mode to accept incoming connections
         // SOMAXCONN is used as default backlog (max pending connections)
-        server_socket->listen();
+        server_socket->listen(SOMAXCONN * 10);
 
         // TODO: Temporarily using select server, will migrate to poll() for better performance
         // poll() supports more file descriptors and has better scalability
@@ -112,11 +112,13 @@ namespace hamza
             // Check if server socket has activity (new incoming connection)
             if (fd_select_server.is_fd_set(server_socket->get_file_descriptor_raw_value()))
             {
+                current_waiting_to_be_accepted.fetch_add(1);
                 handle_new_connection();
             }
 
             // Check each client socket for incoming data
             // Lambda function allows access to 'this' pointer for member function calls
+            // std::cout << clients.size() << " clients connected." << std::endl;
             clients.for_each([this](std::shared_ptr<hamza::socket> sock_ptr)
                              {
                                  // Skip null pointers and disconnected sockets
@@ -178,6 +180,9 @@ namespace hamza
                     // Timeout occurred - no activity within specified time
                     // Allows derived classes to perform periodic tasks
                     this->on_waiting_for_activity();
+                    // std::cout << "Current Active Clients: " << clients.size() << std::endl;
+                    // std::cout << "Current Max FD: " << clients.max() << std::endl;
+                    // std::cout << "Current Waiting To Be Accepted: " << current_waiting_to_be_accepted.load() << std::endl;
                 }
 
                 // Check all monitored sockets for activity
@@ -266,24 +271,31 @@ namespace hamza
         {
             // Accept pending connection from server socket
             // Returns new socket object representing client connection
-            auto client_socket_ptr = server_socket->accept();
 
-            // Validate that client socket was created successfully
-            if (client_socket_ptr == nullptr)
+            while (current_waiting_to_be_accepted.load() > 0 && clients.size() < 1000)
             {
-                throw hamza::socket_exception("Failed to create client socket.", "TCP_SERVER_NewConnection", __func__);
+                auto client_socket_ptr = server_socket->accept();
+
+                // Validate that client socket was created successfully
+                if (client_socket_ptr == nullptr)
+                {
+                    throw hamza::socket_exception("Failed to create client socket.", "TCP_SERVER_NewConnection", __func__);
+                    break;
+                }
+
+                // Add client to container for tracking and management
+                clients.insert(client_socket_ptr);
+
+                // Add client file descriptor to select server monitoring
+                // This allows select() to detect activity on this client socket
+                fd_select_server.add_fd(client_socket_ptr->get_file_descriptor_raw_value());
+
+                // Notify application layer about new client connection
+                // Allows for welcome messages, authentication, logging, et.
+
+                current_waiting_to_be_accepted.fetch_sub(1);
+                this->on_client_connected(client_socket_ptr);
             }
-
-            // Add client to container for tracking and management
-            clients.insert(client_socket_ptr);
-
-            // Add client file descriptor to select server monitoring
-            // This allows select() to detect activity on this client socket
-            fd_select_server.add_fd(client_socket_ptr->get_file_descriptor_raw_value());
-
-            // Notify application layer about new client connection
-            // Allows for welcome messages, authentication, logging, etc.
-            this->on_client_connected(client_socket_ptr);
         }
         catch (const std::exception &e)
         {

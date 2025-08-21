@@ -195,5 +195,20 @@ namespace hamza
             std::lock_guard<std::mutex> lock(mtx);
             return sockets.empty();
         }
+
+        // get max fd in sockts
+        int max()
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            if (sockets.empty())
+                return -1; // No sockets available
+
+            // Find the maximum file descriptor value among all sockets
+            return std::accumulate(sockets.begin(), sockets.end(), -1,
+                                   [](int max_fd, const std::shared_ptr<hamza::socket> &sock)
+                                   {
+                                       return sock ? std::max(max_fd, sock->get_file_descriptor_raw_value()) : max_fd;
+                                   });
+        }
     };
 }

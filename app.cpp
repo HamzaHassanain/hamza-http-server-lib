@@ -13,8 +13,8 @@ int main()
         return 1;
     }
 
-    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 8080, 0, 50000);
-    hamza_http::thread_pool pool(128);
+    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 12346, 1, 0);
+    hamza_http::thread_pool pool(512);
     int ReqCnt = 0;
     using reqT = hamza_http::http_request;
     using resT = hamza_http::http_response;
@@ -39,7 +39,7 @@ int main()
             // {
             //     your_headers += key + ": " + value + "\n";
             // }
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
             response->set_status(200, "OK");
             response->add_header("Content-Type", "text/plain");
             response->add_header("Connection", "close");

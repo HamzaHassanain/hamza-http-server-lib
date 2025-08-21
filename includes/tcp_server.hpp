@@ -46,8 +46,8 @@ namespace hamza
         /// Atomic flag indicating server running state
         std::atomic<bool> running{false};
 
-        /// Mutex for thread-safe connection closure operations
-        // std::mutex close_mutex;
+        /// Counter for currently waiting connections to be accepted
+        std::atomic<int> current_waiting_to_be_accepted{0};
 
         /**
          * @brief Remove client from server and cleanup resources.

@@ -183,6 +183,322 @@ namespace hamza
     }
 
     /**
+     * Accepts an incoming TCP connection and creates a new socket for it.
+     * Uses ::accept() system call to extract first pending connection.
+     * Returns a new socket object representing the client connection.
+     * Original socket remains in listening state for more connections.
+     */
+    std::shared_ptr<socket> socket::accept(bool NON_BLOCKING)
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+        // Verify this is a TCP socket - UDP doesn't have connections to accept
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("Accept is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+
+        sockaddr_storage client_addr;
+        socklen_t client_addr_len = sizeof(client_addr);
+
+        // ::accept(sockfd, addr, addrlen) - accept pending connection
+        // Returns new socket descriptor for the connection, -1 on error
+        // Fills client_addr with client's address information
+        socket_t client_fd;
+        if (!NON_BLOCKING)
+            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
+        else
+        {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            // use non-blocking accept on Windows
+            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
+            if (client_fd != INVALID_SOCKET)
+            {
+                u_long mode = 1; // 1 to enable non-blocking socket
+                if (ioctlsocket(client_fd, FIONBIO, &mode) != 0)
+                {
+                    closesocket(client_fd);
+                    client_fd = INVALID_SOCKET;
+                    throw socket_exception("Failed to set non-blocking mode on accepted socket: " + std::string(get_error_message()), "SocketOption", __func__);
+                }
+            }
+#else
+            // Use non-blocking accept on UNIX
+            client_fd = ::accept4(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
+#endif
+        }
+        if (!is_valid_socket(client_fd))
+        {
+            throw socket_exception("Failed to accept connection: " + std::string(get_error_message()), "SocketAcceptance", __func__);
+        }
+
+        // Create new socket object for the accepted connection
+        socket_address client_socket_address(client_addr);
+        socket new_socket(file_descriptor(client_fd), protocol);
+        new_socket.addr = client_socket_address;
+        return std::make_shared<socket>(std::move(new_socket));
+    }
+
+    /**
+     * Receives data from any client via UDP socket.
+     * Uses ::recvfrom() system call to receive datagram and sender information.
+     * UDP is connectionless - can receive from any sender.
+     * Buffer size is set to 64KB to handle maximum UDP payload size.
+     */
+    data_buffer socket::receive(socket_address &client_addr)
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+
+        // Verify this is a UDP socket - TCP uses receive_on_connection()
+        if (protocol != Protocol::UDP)
+        {
+            throw socket_exception("receive is only supported for UDP sockets", "ProtocolMismatch", __func__);
+        }
+
+        sockaddr_storage sender_addr;
+        socklen_t sender_addr_len = sizeof(sender_addr);
+
+        // Use 64KB buffer for UDP - theoretical max UDP payload is 65507 bytes
+        char buffer[MAX_BUFFER_SIZE];
+
+        // ::recvfrom(sockfd, buf, len, flags, src_addr, addrlen) - receive datagram
+        // Returns number of bytes received, -1 on error
+        // Fills sender_addr with sender's address information
+        ssize_t bytes_received = ::recvfrom(fd.get(), buffer, sizeof(buffer), 0,
+                                            reinterpret_cast<sockaddr *>(&sender_addr), &sender_addr_len);
+
+        if (bytes_received == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to receive data: " + std::string(get_error_message()), "SocketReceive", __func__);
+        }
+
+        // Extract sender's address and return received data
+        client_addr = socket_address(sender_addr);
+        return data_buffer(buffer, static_cast<std::size_t>(bytes_received));
+    }
+
+    /**
+     * Sends data to specific address via UDP socket.
+     * Uses ::sendto() system call to send datagram to specified destination.
+     * UDP is connectionless - each send specifies destination address.
+     * Verifies all data was sent in single operation.
+     */
+    void socket::send_to(const socket_address &addr, const data_buffer &data)
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+
+        // Verify this is a UDP socket - TCP uses send_on_connection()
+        if (protocol != Protocol::UDP)
+        {
+            throw socket_exception("send_to is only supported for UDP sockets", "ProtocolMismatch", __func__);
+        }
+
+        // ::sendto(sockfd, buf, len, flags, dest_addr, addrlen) - send datagram
+        // Returns number of bytes sent, -1 on error
+        ssize_t bytes_sent = ::sendto(fd.get(), data.data(), data.size(), 0,
+                                      addr.get_sock_addr(), addr.get_sock_addr_len());
+
+        if (bytes_sent == SOCKET_ERROR_VALUE)
+        {
+            throw socket_exception("Failed to send data: " + std::string(get_error_message()), "SocketSend", __func__);
+        }
+
+        // UDP should send all data in one operation - partial sends indicate problems
+        if (static_cast<std::size_t>(bytes_sent) != data.size())
+        {
+            throw socket_exception("Partial send: only " + std::to_string(bytes_sent) +
+                                       " of " + std::to_string(data.size()) + " bytes sent",
+                                   "PartialSend", __func__);
+        }
+    }
+
+    /**
+     * Sends data over established TCP connection.
+     * Uses ::write() system call in loop to ensure all data is transmitted.
+     * TCP may send data in multiple chunks, so loop until all data sent.
+     * Tracks total bytes sent to detect partial transmission issues.
+     */
+    void socket::send_on_connection(const data_buffer &data)
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+
+        // Verify this is a TCP socket - UDP uses send_to()
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("send is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+        if (fd.get() == SOCKET_ERROR_VALUE || fd.get() == INVALID_SOCKET_VALUE)
+        {
+            return;
+        }
+        std::size_t total_sent = 0;
+        const char *buffer = data.data();
+        std::size_t data_size = data.size();
+
+        // TCP may require multiple send operations for large data
+        while (total_sent < data_size)
+        {
+            // ::write(fd, buf, count) - write data to file descriptor
+            // Returns number of bytes written, -1 on error
+            // May write less than requested (partial write)
+            ssize_t bytes_sent = ::write(fd.get(), buffer + total_sent, data_size - total_sent);
+
+            if (bytes_sent == SOCKET_ERROR_VALUE)
+            {
+                throw socket_exception("Failed to write data for fd:  " + std::to_string(fd.get()) + " " + std::string(get_error_message()), "SocketWrite", __func__);
+            }
+
+            total_sent += static_cast<std::size_t>(bytes_sent);
+        }
+
+        // Verify all data was eventually sent
+        if (total_sent != data_size)
+        {
+            throw socket_exception("Partial write: only " + std::to_string(total_sent) +
+                                       " of " + std::to_string(data_size) + " bytes sent",
+                                   "PartialWrite", __func__);
+        }
+    }
+
+    /**
+     * Receives data from established TCP connection.
+     * Uses ::read() system call in loop to receive all available data.
+     * Continues reading until no more data available or connection closed.
+     * Handles non-blocking sockets by checking for EAGAIN/EWOULDBLOCK.
+     */
+    data_buffer socket::receive_on_connection()
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+
+        // Verify this is a TCP socket - UDP uses receive()
+        if (protocol != Protocol::TCP)
+        {
+            throw socket_exception("receive_on_connection is only supported for TCP sockets", "ProtocolMismatch", __func__);
+        }
+        if (fd.get() == SOCKET_ERROR_VALUE || fd.get() == INVALID_SOCKET_VALUE)
+        {
+            return data_buffer();
+        }
+        data_buffer received_data;
+        char buffer[MAX_BUFFER_SIZE];
+
+        while (true)
+        {
+// ::read(fd, buf, count) - read data from file descriptor
+// Returns number of bytes read, 0 on EOF, -1 on error
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            ssize_t bytes_received = ::recv(fd.get(), buffer, sizeof(buffer), 0);
+#else
+            int bytes_received = ::read(fd.get(), buffer, sizeof(buffer));
+#endif
+            // EOF
+            if (!bytes_received)
+            {
+                break;
+            }
+
+            if (bytes_received == SOCKET_ERROR_VALUE)
+            {
+                // For non-blocking sockets, EAGAIN/EWOULDBLOCK means no data available
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                if (WSAGetLastError() == WSAEWOULDBLOCK)
+#else
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+#endif
+                {
+                    break;
+                }
+                throw socket_exception("Failed to read data for fd " + std::to_string(fd.get()) + " " + std::string(get_error_message()), "SocketRead", __func__);
+            }
+
+            received_data.append(buffer, static_cast<std::size_t>(bytes_received));
+        }
+
+        return received_data;
+    }
+
+    /**
+     * Safely closes the socket connection and releases system resources.
+     * Uses close_socket() utility function to properly close the file descriptor.
+     * Invalidates the file descriptor to prevent further use.
+     * Throws socket_exception on error.
+     */
+    void socket::disconnect()
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+        try
+        {
+            if (fd.get() != INVALID_SOCKET_VALUE && fd.get() != SOCKET_ERROR_VALUE)
+            {
+                close_socket(fd.get()); // Close the socket file descriptor
+                fd.invalidate();        // Mark file descriptor as invalid
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw socket_exception("Error disconnecting socket: " + std::string(e.what()), "SocketDisconnect", __func__);
+        }
+    }
+
+    /**
+     * Checks if the socket is currently connected and valid.
+     * First verifies the file descriptor is valid.
+     * Then uses utility function to check actual connection status.
+     * For TCP: checks if connection is established.
+     * For UDP: checks if socket is bound and operational.
+     */
+    bool socket::is_connected() const
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+        // First check if file descriptor is valid
+        if (fd.get() == INVALID_SOCKET_VALUE || fd.get() == SOCKET_ERROR_VALUE)
+        {
+            return false;
+        }
+
+        // Use utility function to check actual socket connection status
+        return is_socket_connected(fd.get());
+    }
+
+    /**
+     * returns the bound local address.
+     */
+    socket_address socket::get_remote_address() const
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+        return addr;
+    }
+
+    /**
+     * Returns the raw file descriptor value for advanced operations.
+     * Should be used carefully as it bypasses the wrapper's safety mechanisms.
+     */
+    int socket::get_file_descriptor_raw_value() const
+    {
+        // std::lock_guard<std::mutex> lock(mtx);
+
+        return fd.get();
+    }
+
+    void socket::set_close_on_exec(bool enable)
+    {
+        try
+        {
+            int flags = fcntl(this->fd.get(), F_GETFD);
+            if (flags != -1)
+            {
+                if (enable)
+                    fcntl(this->fd.get(), F_SETFD, flags | FD_CLOEXEC);
+                else
+                    fcntl(this->fd.get(), F_SETFD, flags & ~FD_CLOEXEC);
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw socket_exception("Error setting close-on-exec flag: " + std::string(e.what()), "SocketSetCloseOnExec", __func__);
+        }
+    }
+
+    /**
      * Sets SO_REUSEADDR socket option to allow address reuse.
      * Prevents "Address already in use" errors when restarting servers.
      * Uses setsockopt() system call to modify socket behavior.
@@ -510,303 +826,6 @@ namespace hamza
                 throw socket_exception("Failed to set IPV6_TCLASS option: " + std::string(get_error_message()), "SocketOption", __func__);
             }
         }
-    }
-
-    /**
-     * Accepts an incoming TCP connection and creates a new socket for it.
-     * Uses ::accept() system call to extract first pending connection.
-     * Returns a new socket object representing the client connection.
-     * Original socket remains in listening state for more connections.
-     */
-    std::shared_ptr<socket> socket::accept(bool NON_BLOCKING)
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-        // Verify this is a TCP socket - UDP doesn't have connections to accept
-        if (protocol != Protocol::TCP)
-        {
-            throw socket_exception("Accept is only supported for TCP sockets", "ProtocolMismatch", __func__);
-        }
-
-        sockaddr_storage client_addr;
-        socklen_t client_addr_len = sizeof(client_addr);
-
-        // ::accept(sockfd, addr, addrlen) - accept pending connection
-        // Returns new socket descriptor for the connection, -1 on error
-        // Fills client_addr with client's address information
-        socket_t client_fd;
-        if (!NON_BLOCKING)
-            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
-        else
-        {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-            // use non-blocking accept on Windows
-            client_fd = ::accept(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
-            if (client_fd != INVALID_SOCKET)
-            {
-                u_long mode = 1; // 1 to enable non-blocking socket
-                if (ioctlsocket(client_fd, FIONBIO, &mode) != 0)
-                {
-                    closesocket(client_fd);
-                    client_fd = INVALID_SOCKET;
-                    throw socket_exception("Failed to set non-blocking mode on accepted socket: " + std::string(get_error_message()), "SocketOption", __func__);
-                }
-            }
-#else
-            // Use non-blocking accept on UNIX
-            client_fd = ::accept4(fd.get(), reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len, SOCK_NONBLOCK | SOCK_CLOEXEC);
-#endif
-        }
-        if (!is_valid_socket(client_fd))
-        {
-            throw socket_exception("Failed to accept connection: " + std::string(get_error_message()), "SocketAcceptance", __func__);
-        }
-
-        // Create new socket object for the accepted connection
-        socket_address client_socket_address(client_addr);
-        socket new_socket(file_descriptor(client_fd), protocol);
-        new_socket.addr = client_socket_address;
-        return std::make_shared<socket>(std::move(new_socket));
-    }
-
-    /**
-     * Receives data from any client via UDP socket.
-     * Uses ::recvfrom() system call to receive datagram and sender information.
-     * UDP is connectionless - can receive from any sender.
-     * Buffer size is set to 64KB to handle maximum UDP payload size.
-     */
-    data_buffer socket::receive(socket_address &client_addr)
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-
-        // Verify this is a UDP socket - TCP uses receive_on_connection()
-        if (protocol != Protocol::UDP)
-        {
-            throw socket_exception("receive is only supported for UDP sockets", "ProtocolMismatch", __func__);
-        }
-
-        sockaddr_storage sender_addr;
-        socklen_t sender_addr_len = sizeof(sender_addr);
-
-        // Use 64KB buffer for UDP - theoretical max UDP payload is 65507 bytes
-        char buffer[MAX_BUFFER_SIZE];
-
-        // ::recvfrom(sockfd, buf, len, flags, src_addr, addrlen) - receive datagram
-        // Returns number of bytes received, -1 on error
-        // Fills sender_addr with sender's address information
-        ssize_t bytes_received = ::recvfrom(fd.get(), buffer, sizeof(buffer), 0,
-                                            reinterpret_cast<sockaddr *>(&sender_addr), &sender_addr_len);
-
-        if (bytes_received == SOCKET_ERROR_VALUE)
-        {
-            throw socket_exception("Failed to receive data: " + std::string(get_error_message()), "SocketReceive", __func__);
-        }
-
-        // Extract sender's address and return received data
-        client_addr = socket_address(sender_addr);
-        return data_buffer(buffer, static_cast<std::size_t>(bytes_received));
-    }
-
-    /**
-     * Sends data to specific address via UDP socket.
-     * Uses ::sendto() system call to send datagram to specified destination.
-     * UDP is connectionless - each send specifies destination address.
-     * Verifies all data was sent in single operation.
-     */
-    void socket::send_to(const socket_address &addr, const data_buffer &data)
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-
-        // Verify this is a UDP socket - TCP uses send_on_connection()
-        if (protocol != Protocol::UDP)
-        {
-            throw socket_exception("send_to is only supported for UDP sockets", "ProtocolMismatch", __func__);
-        }
-
-        // ::sendto(sockfd, buf, len, flags, dest_addr, addrlen) - send datagram
-        // Returns number of bytes sent, -1 on error
-        ssize_t bytes_sent = ::sendto(fd.get(), data.data(), data.size(), 0,
-                                      addr.get_sock_addr(), addr.get_sock_addr_len());
-
-        if (bytes_sent == SOCKET_ERROR_VALUE)
-        {
-            throw socket_exception("Failed to send data: " + std::string(get_error_message()), "SocketSend", __func__);
-        }
-
-        // UDP should send all data in one operation - partial sends indicate problems
-        if (static_cast<std::size_t>(bytes_sent) != data.size())
-        {
-            throw socket_exception("Partial send: only " + std::to_string(bytes_sent) +
-                                       " of " + std::to_string(data.size()) + " bytes sent",
-                                   "PartialSend", __func__);
-        }
-    }
-
-    /**
-     * Sends data over established TCP connection.
-     * Uses ::write() system call in loop to ensure all data is transmitted.
-     * TCP may send data in multiple chunks, so loop until all data sent.
-     * Tracks total bytes sent to detect partial transmission issues.
-     */
-    void socket::send_on_connection(const data_buffer &data)
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-
-        // Verify this is a TCP socket - UDP uses send_to()
-        if (protocol != Protocol::TCP)
-        {
-            throw socket_exception("send is only supported for TCP sockets", "ProtocolMismatch", __func__);
-        }
-        if (fd.get() == SOCKET_ERROR_VALUE || fd.get() == INVALID_SOCKET_VALUE)
-        {
-            return;
-        }
-        std::size_t total_sent = 0;
-        const char *buffer = data.data();
-        std::size_t data_size = data.size();
-
-        // TCP may require multiple send operations for large data
-        while (total_sent < data_size)
-        {
-            // ::write(fd, buf, count) - write data to file descriptor
-            // Returns number of bytes written, -1 on error
-            // May write less than requested (partial write)
-            ssize_t bytes_sent = ::write(fd.get(), buffer + total_sent, data_size - total_sent);
-
-            if (bytes_sent == SOCKET_ERROR_VALUE)
-            {
-                throw socket_exception("Failed to write data for fd:  " + std::to_string(fd.get()) + " " + std::string(get_error_message()), "SocketWrite", __func__);
-            }
-
-            total_sent += static_cast<std::size_t>(bytes_sent);
-        }
-
-        // Verify all data was eventually sent
-        if (total_sent != data_size)
-        {
-            throw socket_exception("Partial write: only " + std::to_string(total_sent) +
-                                       " of " + std::to_string(data_size) + " bytes sent",
-                                   "PartialWrite", __func__);
-        }
-    }
-
-    /**
-     * Receives data from established TCP connection.
-     * Uses ::read() system call in loop to receive all available data.
-     * Continues reading until no more data available or connection closed.
-     * Handles non-blocking sockets by checking for EAGAIN/EWOULDBLOCK.
-     */
-    data_buffer socket::receive_on_connection()
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-
-        // Verify this is a TCP socket - UDP uses receive()
-        if (protocol != Protocol::TCP)
-        {
-            throw socket_exception("receive_on_connection is only supported for TCP sockets", "ProtocolMismatch", __func__);
-        }
-        if (fd.get() == SOCKET_ERROR_VALUE || fd.get() == INVALID_SOCKET_VALUE)
-        {
-            return data_buffer();
-        }
-        data_buffer received_data;
-        char buffer[MAX_BUFFER_SIZE];
-
-        while (true)
-        {
-// ::read(fd, buf, count) - read data from file descriptor
-// Returns number of bytes read, 0 on EOF, -1 on error
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-            ssize_t bytes_received = ::recv(fd.get(), buffer, sizeof(buffer), 0);
-#else
-            int bytes_received = ::read(fd.get(), buffer, sizeof(buffer));
-#endif
-            // EOF
-            if (!bytes_received)
-            {
-                break;
-            }
-
-            if (bytes_received == SOCKET_ERROR_VALUE)
-            {
-                // For non-blocking sockets, EAGAIN/EWOULDBLOCK means no data available
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-                if (WSAGetLastError() == WSAEWOULDBLOCK)
-#else
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-#endif
-                {
-                    break;
-                }
-                throw socket_exception("Failed to read data for fd " + std::to_string(fd.get()) + " " + std::string(get_error_message()), "SocketRead", __func__);
-            }
-
-            received_data.append(buffer, static_cast<std::size_t>(bytes_received));
-        }
-
-        return received_data;
-    }
-
-    /**
-     * Safely closes the socket connection and releases system resources.
-     * Uses close_socket() utility function to properly close the file descriptor.
-     * Invalidates the file descriptor to prevent further use.
-     * Throws socket_exception on error.
-     */
-    void socket::disconnect()
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-        try
-        {
-            if (fd.get() != INVALID_SOCKET_VALUE && fd.get() != SOCKET_ERROR_VALUE)
-            {
-                close_socket(fd.get()); // Close the socket file descriptor
-                fd.invalidate();        // Mark file descriptor as invalid
-            }
-        }
-        catch (const std::exception &e)
-        {
-            throw socket_exception("Error disconnecting socket: " + std::string(e.what()), "SocketDisconnect", __func__);
-        }
-    }
-
-    /**
-     * Checks if the socket is currently connected and valid.
-     * First verifies the file descriptor is valid.
-     * Then uses utility function to check actual connection status.
-     * For TCP: checks if connection is established.
-     * For UDP: checks if socket is bound and operational.
-     */
-    bool socket::is_connected() const
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-        // First check if file descriptor is valid
-        if (fd.get() == INVALID_SOCKET_VALUE || fd.get() == SOCKET_ERROR_VALUE)
-        {
-            return false;
-        }
-
-        // Use utility function to check actual socket connection status
-        return is_socket_connected(fd.get());
-    }
-
-    /**
-     * returns the bound local address.
-     */
-    socket_address socket::get_remote_address() const
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-        return addr;
-    }
-
-    /**
-     * Returns the raw file descriptor value for advanced operations.
-     * Should be used carefully as it bypasses the wrapper's safety mechanisms.
-     */
-    int socket::get_file_descriptor_raw_value() const
-    {
-        // std::lock_guard<std::mutex> lock(mtx);
-
-        return fd.get();
     }
 
     /**

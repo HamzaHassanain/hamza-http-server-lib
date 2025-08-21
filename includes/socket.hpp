@@ -199,6 +199,15 @@ namespace hamza
          * dead connections and clean up resources for broken connections.
          * Only applicable to TCP sockets.
          */
+
+        /**
+         * @brief Set the close on exec object
+         *  that prevents the file descriptor from being inherited by child processes.
+         * @param enable Whether to enable close-on-exec
+         */
+
+        void set_close_on_exec(bool enable);
+
         void set_keep_alive(bool enable);
 
         /**
