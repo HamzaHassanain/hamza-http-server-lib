@@ -3,6 +3,7 @@
 #include <tcp_server.hpp>
 #include <functional>
 #include <iostream>
+#include <thread_pool.hpp>
 int main()
 {
 
@@ -12,7 +13,8 @@ int main()
         return 1;
     }
 
-    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 12345, 0, 50000);
+    auto server = std::make_shared<hamza_http::http_server>("127.0.0.1", 8080, 0, 50000);
+    hamza_http::thread_pool pool(128);
     int ReqCnt = 0;
     using reqT = hamza_http::http_request;
     using resT = hamza_http::http_response;
@@ -32,12 +34,12 @@ int main()
         // Handle the request and prepare the response
         try
         {
-            std::string your_headers;
+            std::string your_headers = request->get_method() + " " + request->get_uri() + " " + request->get_version() + "\n";
             // for (const auto &[key, value] : request->get_headers())
             // {
             //     your_headers += key + ": " + value + "\n";
             // }
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             response->set_status(200, "OK");
             response->add_header("Content-Type", "text/plain");
             response->add_header("Connection", "close");
@@ -54,11 +56,13 @@ int main()
             response->end();
         }
     };
-    auto request_callback = [handler_function](req &request, res &response)
+    auto request_callback = [&pool, handler_function](req &request, res &response)
     {
         auto req_ptr = std::make_shared<req>(std::move(request));
         auto res_ptr = std::make_shared<res>(std::move(response));
-        std::thread(handler_function, req_ptr, res_ptr).detach();
+
+        pool.enqueue([handler_function, req_ptr, res_ptr]()
+                     { handler_function(req_ptr, res_ptr); });
     };
     auto server_stopped_callback = [&ReqCnt]()
     {

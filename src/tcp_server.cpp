@@ -22,7 +22,7 @@ namespace hamza
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
         server_socket = std::make_unique<hamza::socket>(hamza::Protocol::TCP);
-        server_socket->set_reuse_address(true);
+        // server_socket->set_reuse_address(true);
         server_socket->set_non_blocking(true);
         server_socket->bind(addr);
 
@@ -71,14 +71,14 @@ namespace hamza
             // This prevents select() from monitoring this file descriptor
             fd_select_server.remove_fd(sock_ptr->get_file_descriptor_raw_value());
 
-            // Remove client from container (maintains list of active clients)
-            clients.erase(sock_ptr);
-
             // Close the socket connection and release system resources
             sock_ptr->disconnect();
 
             // Recalculate maximum file descriptor for select() optimization
             // select() needs to know the highest-numbered file descriptor + 1
+
+            // Remove client from container (maintains list of active clients)
+            clients.erase(sock_ptr);
 
             // Notify derived classes about client disconnection
             // Allows application-specific cleanup (logging, user notifications, etc.)
@@ -158,7 +158,7 @@ namespace hamza
             {
                 // Call select() to wait for activity on monitored file descriptors
                 // Returns: >0 (number of ready descriptors), 0 (timeout), <0 (error)
-                int activity = fd_select_server.select(clients.minimum_excluded_value(3));
+                int activity = fd_select_server.select();
 
                 if (activity < 0)
                 {
@@ -319,7 +319,7 @@ namespace hamza
     void tcp_server::close_connection(std::shared_ptr<hamza::socket> sock_ptr)
     {
         // Use lock guard for automatic mutex management
-        std::lock_guard<std::mutex> lock(close_mutex);
+        // std::lock_guard<std::mutex> lock(close_mutex);
         remove_client(sock_ptr);
     }
 
@@ -373,7 +373,7 @@ namespace hamza
 
     void tcp_server::close_server_socket()
     {
-        std::lock_guard<std::mutex> lock(close_mutex);
+        // std::lock_guard<std::mutex> lock(close_mutex);
         // Ensure server socket is initialized before attempting closure
         if (!server_socket)
         {

@@ -53,7 +53,7 @@ namespace hamza
         Protocol protocol;
 
         /// Mutex for thread-safe access
-        mutable std::mutex mtx;
+        // mutable std::mutex mtx;
 
         /**
          * @brief Create socket from existing file descriptor.

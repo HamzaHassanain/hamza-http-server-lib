@@ -90,7 +90,7 @@ namespace hamza
      * Returns number of ready file descriptors or error conditions.
      * Thread-safe operation using mutex protection.
      */
-    int select_server::select(const int &next_available_fd)
+    int select_server::select()
     {
         // Acquire exclusive lock for thread safety
         std::lock_guard<std::mutex> lock(mtx);
@@ -122,7 +122,7 @@ namespace hamza
         return ::select(0, &read_fds, nullptr, nullptr, &timeout);
 #else
         // Unix/Linux: First parameter should be highest fd + 1 for efficiency
-        return ::select(next_available_fd, &read_fds, nullptr, nullptr, &timeout);
+        return ::select(8192, &read_fds, nullptr, nullptr, &timeout);
 #endif
     }
 

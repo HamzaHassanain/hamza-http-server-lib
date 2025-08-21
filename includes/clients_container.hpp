@@ -185,63 +185,6 @@ namespace hamza
         }
 
         /**
-         * @brief Get the maximum file descriptor value among all sockets.
-         * @return Maximum file descriptor value, or -1 if container is empty
-         *
-         * Thread-safe operation used primarily for select() system calls,
-         * which require the maximum file descriptor value to determine the
-         * range of file descriptors to monitor.
-         *
-         * @note Skips null socket pointers when calculating maximum.
-         */
-        int max() const
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            if (sockets.empty())
-            {
-                return -1;
-            }
-            int max_fd = -1;
-            for (const auto &sock : sockets)
-            {
-                if (!sock)
-                    continue;
-                max_fd = std::max(max_fd, sock->get_file_descriptor_raw_value());
-            }
-            return max_fd;
-        }
-
-        /**
-         * @brief Get the next available file descriptor, that is the mex (Minimum EXcluded value) starting from 3
-         * @return Next available file descriptor value
-         */
-        int minimum_excluded_value(const int &from) const
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-
-            if (from < 3 || from > 1024)
-            {
-                throw socket_exception("Invalid starting point for minimum_excluded_value. Must be between 3 and 1024.", "ClientsContainer", __func__);
-            }
-
-            std::vector<std::size_t> current_fds(from + 1);
-            std::iota(current_fds.begin(), current_fds.end(), 0); // Fill with 0, 1, ..., from
-            for (const auto &sock : sockets)
-            {
-                if (!sock)
-                    continue;
-                current_fds.push_back(sock->get_file_descriptor_raw_value());
-            }
-            std::sort(current_fds.begin(), current_fds.end());
-            for (std::size_t i = static_cast<std::size_t>(from); i < current_fds.size(); ++i)
-            {
-                if (current_fds[i] != i)
-                    return i;
-            }
-            return current_fds.size();
-        }
-
-        /**
          * @brief Check if the container is empty.
          * @return true if no sockets are stored, false otherwise
          *

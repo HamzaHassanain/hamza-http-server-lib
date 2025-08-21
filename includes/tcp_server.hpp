@@ -47,7 +47,7 @@ namespace hamza
         std::atomic<bool> running{false};
 
         /// Mutex for thread-safe connection closure operations
-        std::mutex close_mutex;
+        // std::mutex close_mutex;
 
         /**
          * @brief Remove client from server and cleanup resources.

@@ -35,7 +35,7 @@ namespace hamza
     socket::socket(const Protocol &protocol = Protocol::UDP)
         : protocol(protocol)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Create socket: ::socket(domain, type, protocol)
         // domain: AF_INET (IPv4) or AF_INET6 (IPv6)
@@ -60,7 +60,7 @@ namespace hamza
     socket::socket(const socket_address &addr, const Protocol &protocol)
         : addr(addr)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Create socket: ::socket(domain, type, protocol)
         // domain: AF_INET (IPv4) or AF_INET6 (IPv6)
@@ -87,7 +87,7 @@ namespace hamza
     socket::socket(const socket_address &addr, const Protocol &protocol, bool reuse)
         : addr(addr), fd(socket_t(INVALID_SOCKET_VALUE))
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Create socket with same parameters as above
         int socket_file_descriptor = ::socket(addr.get_family().get(), static_cast<int>(protocol), 0);
@@ -144,7 +144,7 @@ namespace hamza
      */
     void socket::bind(const socket_address &addr)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         this->addr = addr;
 
@@ -165,7 +165,7 @@ namespace hamza
      */
     void socket::listen(int backlog)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Verify this is a TCP socket - UDP doesn't support listen/accept
         if (protocol != Protocol::TCP)
@@ -190,7 +190,7 @@ namespace hamza
      */
     void socket::set_reuse_address(bool reuse)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         int optval = reuse ? 1 : 0;
 
@@ -212,7 +212,7 @@ namespace hamza
      */
     void socket::set_broadcast(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         int optval = enable ? 1 : 0;
 
@@ -233,7 +233,7 @@ namespace hamza
      */
     void socket::set_multicast(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         int optval = enable ? 1 : 0;
 
@@ -264,7 +264,7 @@ namespace hamza
      */
     void socket::set_ipv6_only(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         if (addr.get_family() != family(IPV6))
         {
@@ -289,7 +289,7 @@ namespace hamza
      */
     void socket::set_non_blocking(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         // Windows implementation using ioctlsocket
@@ -334,7 +334,7 @@ namespace hamza
      */
     void socket::set_keep_alive(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         if (protocol != Protocol::TCP)
         {
@@ -359,7 +359,7 @@ namespace hamza
      */
     void socket::set_linger(bool enable, int timeout)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         struct linger ling;
         ling.l_onoff = enable ? 1 : 0;
@@ -382,7 +382,7 @@ namespace hamza
      */
     void socket::set_send_buffer_size(int size)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         if (size <= 0)
         {
@@ -406,7 +406,7 @@ namespace hamza
      */
     void socket::set_receive_buffer_size(int size)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         if (size <= 0)
         {
@@ -431,7 +431,7 @@ namespace hamza
      */
     void socket::set_tcp_nodelay(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         if (protocol != Protocol::TCP)
         {
             throw socket_exception("TCP_NODELAY is only supported for TCP sockets", "ProtocolMismatch", __func__);
@@ -456,7 +456,7 @@ namespace hamza
      */
     void socket::set_quick_ack(bool enable)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         if (protocol != Protocol::TCP)
         {
             throw socket_exception("TCP_QUICKACK is only supported for TCP sockets", "ProtocolMismatch", __func__);
@@ -488,7 +488,7 @@ namespace hamza
      */
     void socket::set_traffic_class(int value)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         if (value < 0 || value > 255)
         {
             throw socket_exception("Traffic class value must be between 0 and 255", "InvalidParameter", __func__);
@@ -520,7 +520,7 @@ namespace hamza
      */
     std::shared_ptr<socket> socket::accept(bool NON_BLOCKING)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         // Verify this is a TCP socket - UDP doesn't have connections to accept
         if (protocol != Protocol::TCP)
         {
@@ -576,7 +576,7 @@ namespace hamza
      */
     data_buffer socket::receive(socket_address &client_addr)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Verify this is a UDP socket - TCP uses receive_on_connection()
         if (protocol != Protocol::UDP)
@@ -614,7 +614,7 @@ namespace hamza
      */
     void socket::send_to(const socket_address &addr, const data_buffer &data)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Verify this is a UDP socket - TCP uses send_on_connection()
         if (protocol != Protocol::UDP)
@@ -649,7 +649,7 @@ namespace hamza
      */
     void socket::send_on_connection(const data_buffer &data)
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Verify this is a TCP socket - UDP uses send_to()
         if (protocol != Protocol::TCP)
@@ -697,7 +697,7 @@ namespace hamza
      */
     data_buffer socket::receive_on_connection()
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         // Verify this is a TCP socket - UDP uses receive()
         if (protocol != Protocol::TCP)
@@ -754,7 +754,7 @@ namespace hamza
      */
     void socket::disconnect()
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         try
         {
             if (fd.get() != INVALID_SOCKET_VALUE && fd.get() != SOCKET_ERROR_VALUE)
@@ -778,7 +778,7 @@ namespace hamza
      */
     bool socket::is_connected() const
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         // First check if file descriptor is valid
         if (fd.get() == INVALID_SOCKET_VALUE || fd.get() == SOCKET_ERROR_VALUE)
         {
@@ -794,7 +794,7 @@ namespace hamza
      */
     socket_address socket::get_remote_address() const
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
         return addr;
     }
 
@@ -804,7 +804,7 @@ namespace hamza
      */
     int socket::get_file_descriptor_raw_value() const
     {
-        std::lock_guard<std::mutex> lock(mtx);
+        // std::lock_guard<std::mutex> lock(mtx);
 
         return fd.get();
     }

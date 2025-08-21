@@ -123,13 +123,12 @@ namespace hamza
 
         /**
          * @brief Execute select() system call and wait for activity.
-         * @param next_available_fd The next available file descriptor to monitor (ignored on Windows)
          * @return Number of file descriptors ready for I/O, 0 on timeout, -1 on error
          * @note Thread-safe operation using internal mutex
          * @note Copies master_fds to read_fds before calling select()
          * @note Uses configured timeout for blocking behavior
          * @note Cross-platform: Windows ignores first parameter, Unix uses it for optimization
          */
-        int select(const int &next_available_fd);
+        int select();
     };
 };
