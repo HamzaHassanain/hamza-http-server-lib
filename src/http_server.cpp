@@ -25,6 +25,8 @@ namespace hamza_http
         if (!completed)
             return;
 
+        
+
         auto close_connection_for_objects = [this](std::shared_ptr<hamza::socket> client_socket)
         {
             this->close_connection(client_socket);
