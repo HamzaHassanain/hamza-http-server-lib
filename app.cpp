@@ -33,11 +33,11 @@ int main()
         try
         {
             std::string your_headers;
-            for (const auto &[key, value] : request->get_headers())
-            {
-                your_headers += key + ": " + value + "\n";
-            }
-
+            // for (const auto &[key, value] : request->get_headers())
+            // {
+            //     your_headers += key + ": " + value + "\n";
+            // }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             response->set_status(200, "OK");
             response->add_header("Content-Type", "text/plain");
             response->add_header("Connection", "close");
@@ -77,12 +77,12 @@ int main()
 
     auto on_client_connect = [](const std::shared_ptr<hamza::socket> &client_socket)
     {
-        std::cout << "Client connected: " << client_socket->get_remote_address() << std::endl;
+        // std::cout << "Client connected: " << client_socket->get_remote_address() << std::endl;
     };
 
     auto on_client_disconnect = [](const std::shared_ptr<hamza::socket> &client_socket)
     {
-        std::cout << "Client disconnected: " << client_socket->get_remote_address() << std::endl;
+        // std::cout << "Client disconnected: " << client_socket->get_remote_address() << std::endl;
     };
 
     server->set_request_callback(request_callback);
