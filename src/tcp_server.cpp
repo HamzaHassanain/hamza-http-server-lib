@@ -239,7 +239,11 @@ namespace hamza
             // Receive data from client connection
             // TCP guarantees ordered, reliable delivery of data
             hamza::data_buffer db = sock_ptr->receive_on_connection();
-
+            if (!db.size())
+            {
+                remove_client(sock_ptr);
+                return;
+            }
             // Notify application layer about received message
             // Derived classes implement business logic for message processing
             this->on_message_received(sock_ptr, db);
