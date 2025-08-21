@@ -25,7 +25,11 @@ namespace hamza_http
         if (!completed)
             return;
 
-        
+        if (method.empty() or uri.empty() or version.empty())
+        {
+            this->close_connection(sock_ptr);
+            return;
+        }
 
         auto close_connection_for_objects = [this](std::shared_ptr<hamza::socket> client_socket)
         {
