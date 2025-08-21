@@ -22,7 +22,7 @@ namespace hamza
         // Create TCP server socket with address reuse enabled
         // SO_REUSEADDR allows immediate restart without waiting for TIME_WAIT
         server_socket = std::make_unique<hamza::socket>(hamza::Protocol::TCP);
-        // server_socket->set_reuse_address(true);
+        server_socket->set_reuse_address(true);
         server_socket->set_non_blocking(true);
         server_socket->bind(addr);
 

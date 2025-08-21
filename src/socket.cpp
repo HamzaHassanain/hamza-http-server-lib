@@ -576,6 +576,8 @@ namespace hamza
      */
     data_buffer socket::receive(socket_address &client_addr)
     {
+        std::lock_guard<std::mutex> lock(mtx);
+
         // Verify this is a UDP socket - TCP uses receive_on_connection()
         if (protocol != Protocol::UDP)
         {
@@ -612,6 +614,8 @@ namespace hamza
      */
     void socket::send_to(const socket_address &addr, const data_buffer &data)
     {
+        std::lock_guard<std::mutex> lock(mtx);
+
         // Verify this is a UDP socket - TCP uses send_on_connection()
         if (protocol != Protocol::UDP)
         {
@@ -645,6 +649,8 @@ namespace hamza
      */
     void socket::send_on_connection(const data_buffer &data)
     {
+        std::lock_guard<std::mutex> lock(mtx);
+
         // Verify this is a TCP socket - UDP uses send_to()
         if (protocol != Protocol::TCP)
         {
@@ -691,6 +697,8 @@ namespace hamza
      */
     data_buffer socket::receive_on_connection()
     {
+        std::lock_guard<std::mutex> lock(mtx);
+
         // Verify this is a TCP socket - UDP uses receive()
         if (protocol != Protocol::TCP)
         {
@@ -786,6 +794,7 @@ namespace hamza
      */
     socket_address socket::get_remote_address() const
     {
+        std::lock_guard<std::mutex> lock(mtx);
         return addr;
     }
 
@@ -795,6 +804,8 @@ namespace hamza
      */
     int socket::get_file_descriptor_raw_value() const
     {
+        std::lock_guard<std::mutex> lock(mtx);
+
         return fd.get();
     }
 
