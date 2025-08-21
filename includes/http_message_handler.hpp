@@ -108,10 +108,10 @@ namespace hamza_http
                 request_line >> method >> uri >> version;
             }
 
-            if (method.empty() || uri.empty() || version.empty())
-            {
-                return http_handled_data(false, method, uri, version, headers);
-            }
+            // if (method.empty() || uri.empty() || version.empty())
+            // {
+            //     return http_handled_data(false, method, uri, version, headers);
+            // }
 
             // Parse HTTP headers until empty line is encountered
             while (std::getline(request_stream, line))
@@ -238,7 +238,7 @@ namespace hamza_http
                 }
             }
 
-            return http_handled_data(false, method, uri, version, headers);
+            return http_handled_data(true, method, uri, version, headers);
         }
 
         bool contains_chunked(const std::pair<std::multimap<std::string, std::string>::iterator, std::multimap<std::string, std::string>::iterator> &range)
