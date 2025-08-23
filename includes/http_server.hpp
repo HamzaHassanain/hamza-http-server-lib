@@ -63,6 +63,11 @@ namespace hamza_http
         /// Callback triggered during server idle periods (select timeout)
         std::function<void()> waiting_for_activity_callback;
 
+        /// Callback triggered when HTTP headers are received
+        std::function<void(std::shared_ptr<hamza_socket::connection>, const std::multimap<std::string, std::string> &,
+                           const std::string &, const std::string &, const std::string &, const std::string &)>
+            headers_received_callback;
+
     protected:
         /**
          * @brief Parse HTTP request and invoke user callback.
@@ -123,6 +128,23 @@ namespace hamza_http
          * @note Calls user-provided request callback if set
          */
         virtual void on_request_received(http_request &request, http_response &response);
+
+        /**
+         * @brief Handle HTTP headers received from the client.
+         * @note this function is called when HTTP headers are received, it can be used to process headers before the body is received
+         * @param conn Client connection that sent the headers
+         * @param headers Parsed HTTP headers
+         * @param method HTTP method (GET, POST, etc.)
+         * @param uri Requested URI
+         * @param version HTTP version (e.g., "HTTP/1.1")
+         * @param body Request body (if any)
+         */
+        virtual void on_headers_received(std::shared_ptr<hamza_socket::connection> conn,
+                                         const std::multimap<std::string, std::string> &headers,
+                                         const std::string &method,
+                                         const std::string &uri,
+                                         const std::string &version,
+                                         const std::string &body) = 0;
 
     public:
         /**
@@ -209,6 +231,20 @@ namespace hamza_http
          * @note Useful for periodic maintenance, statistics, or health checks
          */
         void set_waiting_for_activity_callback(std::function<void()> callback);
+
+        /**
+         * @brief Set the headers received callback object
+         *
+         * @param callback that is able to recive:
+         *      std::shared_ptr<hamza_socket::connection> conn, const std::multimap<std::string, std::string> & headers,
+         *      const std::string & method, const std::string & uri, const std::string & version, const std::string & body
+         */
+        void set_headers_received_callback(std::function<void(std::shared_ptr<hamza_socket::connection>, const std::multimap<std::string, std::string> &,
+                                                              const std::string &, const std::string &, const std::string &, const std::string &)>
+                                               callback)
+        {
+            headers_received_callback = std::move(callback);
+        }
 
         /**
          * @brief Start listening for incoming HTTP requests.

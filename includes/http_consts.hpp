@@ -3,14 +3,17 @@
 #include <string>
 #include <algorithm>
 
-namespace hamza_http
+namespace hamza_http::epoll_config
 {
-
     // Maximum number of pending connections
-    constexpr int BACKLOG_SIZE = 1024 * 1024;
+    int BACKLOG_SIZE = 1024 * 1024;
 
     // Maximum number of open file descriptors
-    constexpr int MAX_FILE_DESCRIPTORS = 1024 * 32;
+    int MAX_FILE_DESCRIPTORS = 1024 * 32;
+}
+
+namespace hamza_http
+{
 
     // HTTP Version Constants
     constexpr const char *HTTP_VERSION_1_0 = "HTTP/1.0";

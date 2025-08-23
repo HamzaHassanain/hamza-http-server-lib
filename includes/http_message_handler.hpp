@@ -77,7 +77,7 @@ namespace hamza_http
                 return return_value;
             }
 
-            return http_handled_data(false);
+            return http_handled_data(false, data.method, data.uri, data.version, {}, "");
         }
 
         http_handled_data start_handling(const std::string &socket_key, const hamza_socket::data_buffer &message)
@@ -180,7 +180,7 @@ namespace hamza_http
                     data_ref.version = version;
                     data_ref.headers = headers;
 
-                    return http_handled_data(false);
+                    return http_handled_data(false, method, uri, version, headers, body);
                 }
             }
 
@@ -233,12 +233,12 @@ namespace hamza_http
                         data_ref.version = version;
                         data_ref.headers = headers;
 
-                        return http_handled_data(false);
+                        return http_handled_data(false, method, uri, version, headers, chunked_body_stream.str());
                     }
                 }
             }
 
-            return http_handled_data(true, method, uri, version, headers);
+            return http_handled_data(true, method, uri, version, headers, "");
         }
 
         bool contains_chunked(const std::pair<std::multimap<std::string, std::string>::iterator, std::multimap<std::string, std::string>::iterator> &range)
