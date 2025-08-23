@@ -243,7 +243,7 @@ namespace hamza_http
                                                               const std::string &, const std::string &, const std::string &, const std::string &)>
                                                callback)
         {
-            headers_received_callback = std::move(callback);
+            headers_received_callback = (callback);
         }
 
         /**
