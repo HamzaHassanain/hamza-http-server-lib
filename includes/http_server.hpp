@@ -144,7 +144,7 @@ namespace hamza_http
                                          const std::string &method,
                                          const std::string &uri,
                                          const std::string &version,
-                                         const std::string &body) = 0;
+                                         const std::string &body) {};
 
     public:
         /**

@@ -2,6 +2,15 @@
 
 namespace hamza_http
 {
+    namespace epoll_config
+    {
+        /// @brief Maximum number of pending connections
+        extern int BACKLOG_SIZE = 1024 * 1024;
+
+        /// @brief Maximum number of open file descriptors
+        extern int MAX_FILE_DESCRIPTORS = 1024 * 32;
+    }
+
     /// @brief Convert string to uppercase.
     /// @param input String to convert
     /// @note does not modify the original string, returns a new uppercase string
