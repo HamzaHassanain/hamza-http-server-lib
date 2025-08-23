@@ -34,17 +34,13 @@ An HTTP server written in C++17. Provides some networking stack with TCP server 
 
     - [API Documentation](#api-documentation)
 
+- [HTTP Server Examples](#http-server-examples)
+
 ## Overview
 
 This library provides a modern C++17 implementation of an HTTP server built on fundamental networking principles. It abstracts away the complexity of low-level socket programming while providing full control over HTTP request/response handling. The library is built over another library I built [Simple C++ Socket Library](https://github.com/HamzaHassanain/hamza-socket-lib) that it uses to handle all the low-level socket operations.
 
 ## Building The Project
-
-### Prerequisites
-
-- CMake 3.10 or higher
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-- Standard networking libraries (automatically linked)
 
 ### How to build
 
@@ -265,4 +261,285 @@ target_include_directories(my_app PRIVATE /path/to/hamza-http-server-lib/include
 
 ## API Documentation
 
-To be added
+Below is a reference of the core public classes and their commonly used methods. Include the corresponding header before use.
+
+For detailed method signatures and advanced usage patterns, consult the comprehensive inline documentation in the header files located in `includes/` directory.
+
+### hamza_http::http_request
+
+```cpp
+#include "http_request.hpp"
+
+// - Purpose: Represents an HTTP request with move-only semantics
+// - Features: Encapsulates HTTP method, URI, version, headers, and body
+// - Move-only: move constructor available, copy operations deleted
+// - Key methods:
+  std::string get_method() const                              // — HTTP method (GET, POST, etc.)
+  std::string get_uri() const                                 // — Request URI/path
+  std::string get_version() const                             // — HTTP version (e.g., "HTTP/1.1")
+  std::vector<std::string> get_header(const std::string &name) const  // — Get all values for specific header
+  std::vector<std::pair<std::string, std::string>> get_headers() const // — Get all headers
+  std::string get_body() const                                // — Request body content
+  void destroy(bool Isure)                                    // — Safely destroy request and close connection
+```
+
+### hamza_http::http_response
+
+```cpp
+#include "http_response.hpp"
+
+// - Purpose: Represents an HTTP response with move-only semantics
+// - Features: Status code, headers, body, trailers support
+// - Move-only: move constructor available, copy operations deleted
+// - Key methods:
+  void set_body(const std::string &body)                     // — Set response body content
+  void set_status(int status_code, const std::string &status_message) // — Set HTTP status
+  void set_version(const std::string &version)               // — Set HTTP version
+  void add_header(const std::string &name, const std::string &value)  // — Add response header
+  void add_trailer(const std::string &name, const std::string &value) // — Add trailer header
+  std::string get_body() const                                // — Get response body
+  std::string get_version() const                             // — Get HTTP version
+  std::string get_status_message() const                     // — Get status message
+  int get_status_code() const                                 // — Get status code
+  std::vector<std::string> get_header(const std::string &name) const  // — Get header values
+  std::vector<std::string> get_trailer(const std::string &name) const // — Get trailer values
+  std::string to_string() const                               // — Convert to HTTP string format
+  void send()                                                 // — Send HTTP response to client
+  void end()                                                  // — End response and close connection
+```
+
+### hamza_http::http_server
+
+```cpp
+#include "http_server.hpp"
+
+// - Purpose: High-level HTTP/1.1 server built on TCP server infrastructure
+// - Features: Inheritance-based, Callback-driven architecture, epoll-based I/O multiplexing
+// - Move-only: copy/move operations deleted for resource safety
+
+// - Constructors:
+  http_server(const socket_address &addr, int timeout_ms = 1000)     // — Bind to socket address, creates server socket
+  http_server(int port, const std::string &ip = "0.0.0.0", int timeout_ms = 1000) // — Convenience constructor for IP:port
+
+// - Core Server Control:
+  void listen()                                               // — [virtual] Start epoll event loop, calls epoll_server::listen()
+
+// - Request Processing Callbacks:
+  void set_request_callback(std::function<void(http_request &, http_response &)>) // — [user calls] Set main HTTP handler, called by on_request_received()
+  void set_headers_received_callback(std::function<void(std::shared_ptr<connection>, const std::multimap<std::string, std::string> &, const std::string &, const std::string &, const std::string &, const std::string &)>) // — [user calls] Early header processing, called by on_headers_received()
+
+// - Server Lifecycle Callbacks:
+  void set_listen_success_callback(std::function<void()>)    // — [user calls] Server startup notification, called by on_listen_success()
+  void set_server_stopped_callback(std::function<void()>)    // — [user calls] Server shutdown notification, called by on_shutdown_success()
+  void set_error_callback(std::function<void(const std::exception &)>) // — [user calls] Error handling, called by on_exception_occurred()
+
+// - Connection Management Callbacks:
+  void set_client_connected_callback(std::function<void(std::shared_ptr<connection>)>) // — [user calls] Client connect events, called by on_connection_opened()
+  void set_client_disconnected_callback(std::function<void(std::shared_ptr<connection>)>) // — [user calls] Client disconnect events, called by on_connection_closed()
+  void set_waiting_for_activity_callback(std::function<void()>) // — [user calls] Server idle periods, called by on_waiting_for_activity()
+
+// - Protected Virtual Methods (for inheritance):
+  void on_message_received(std::shared_ptr<connection>, const data_buffer &) // — [virtual override] Parse HTTP request, auto-called by epoll_server
+  void on_listen_success()                                    // — [virtual override] Server started, auto-called by epoll_server
+  void on_shutdown_success()                                  // — [virtual override] Server stopped, auto-called by epoll_server
+  void on_exception_occurred(const std::exception &)         // — [virtual override] Handle errors, auto-called by epoll_server
+  void on_connection_opened(std::shared_ptr<connection>)      // — [virtual override] Client connected, auto-called by epoll_server
+  void on_connection_closed(std::shared_ptr<connection>)      // — [virtual override] Client disconnected, auto-called by epoll_server
+  void on_waiting_for_activity()                             // — [virtual override] Server idle, auto-called by epoll_server
+  void on_request_received(http_request &, http_response &)   // — [virtual] Process parsed HTTP request, called by on_message_received()
+  void on_headers_received(std::shared_ptr<connection>, const std::multimap<std::string, std::string> &, const std::string &, const std::string &, const std::string &, const std::string &) // — [virtual] Early header processing, called by http_message_handler
+```
+
+## Usage Examples
+
+The library supports two main usage patterns:
+
+### 1. Callback-Based Approach
+
+```cpp
+#include <http_server.hpp>
+
+void handle_request(hamza_http::http_request &req, hamza_http::http_response &res) {
+    res.set_status(200, "OK");
+    res.add_header("Content-Type", "text/plain");
+    res.set_body("Hello World!");
+    res.send();
+}
+
+int main() {
+    hamza_http::http_server server(8080);
+    server.set_request_callback(handle_request);
+    server.listen();
+    return 0;
+}
+```
+
+### 2. Inheritance-Based Approach
+
+```cpp
+#include <http_server.hpp>
+
+class MyServer : public hamza_http::http_server {
+public:
+    MyServer(int port) : hamza_http::http_server(port) {}
+
+protected:
+    void on_request_received(hamza_http::http_request &req, hamza_http::http_response &res) override {
+        res.set_status(200, "OK");
+        res.add_header("Content-Type", "text/plain");
+        res.set_body("Hello from custom server!");
+        res.send();
+    }
+};
+
+int main() {
+    MyServer server(8080);
+    server.listen();
+    return 0;
+}
+```
+
+# HTTP Server Examples
+
+### Complete Examples
+
+For examples demonstrating both approaches, see the [`examples/`](examples/) directory:
+
+- **[`callback_based_server.cpp`](examples/callback_based_server.cpp)** - Server using callbacks with routing, error handling, and HTML responses
+- **[`inheritance_based_server.cpp`](examples/inheritance_based_server.cpp)** - Server using inheritance with custom routing system, statistics, and JSON API endpoints
+
+### Take a look at the examples directory.
+
+## Examples Overview
+
+### 1. Callback-Based Server (`callback_based_server.cpp`)
+
+**Approach:** Uses callback functions to handle server events
+**Best for:** Simple servers, rapid prototyping, functional programming style
+
+**Features:**
+
+- Request handling via callback functions
+- Event-driven architecture with separate callbacks for different events
+- No inheritance required
+- Clean separation of concerns
+
+**Key Callbacks Used:**
+
+- `set_request_callback()` - Main HTTP request handling
+- `set_client_connected_callback()` - Client connection events
+- `set_client_disconnected_callback()` - Client disconnection events
+- `set_listen_success_callback()` - Server startup notification
+- `set_error_callback()` - Error handling
+- `set_waiting_for_activity_callback()` - Idle period handling
+
+### 2. Inheritance-Based Server (`inheritance_based_server.cpp`)
+
+**Approach:** Extends the `http_server` class and overrides virtual methods
+**Best for:** Complex servers, object-oriented design, custom behavior
+
+**Features:**
+
+- Custom routing system with method/path mapping
+- Request statistics and connection tracking
+- Virtual method overrides for fine-grained control
+- Object-oriented design with encapsulated state
+
+**Virtual Methods Overridden:**
+
+- `on_request_received()` - Custom request processing with routing
+- `on_connection_opened()` - Custom connection handling with statistics
+- `on_connection_closed()` - Custom disconnection handling
+- `on_listen_success()` - Custom server startup behavior
+- `on_exception_occurred()` - Custom error handling
+- `on_waiting_for_activity()` - Custom idle period processing
+
+## Building and Running
+
+### Prerequisites (Make sure you build as library not executable)
+
+Make sure the main library is built first:
+
+```bash
+cd .. # Go to project root
+./run.sh # Build the library
+```
+
+### Compile the Examples
+
+**Callback-Based Server:**
+
+```bash
+cd examples
+g++ -std=c++17 -I../includes -L../build -o callback_server callback_based_server.cpp -lhttp_server -pthread
+```
+
+**Inheritance-Based Server:**
+
+```bash
+cd examples
+g++ -std=c++17 -I../includes -L../build -o inheritance_server inheritance_based_server.cpp -lhttp_server -pthread
+```
+
+### Run the Servers
+
+**Start Callback-Based Server:**
+
+```bash
+./callback_server
+```
+
+**Start Inheritance-Based Server:**
+
+```bash
+./inheritance_server
+```
+
+Both servers will start on `http://localhost:8080`
+
+## Testing the Servers
+
+### Using a Web Browser
+
+Visit `http://localhost:8080` to see the home page and available endpoints.
+
+### Using cURL
+
+**Basic GET requests:**
+
+```bash
+curl http://localhost:8080/
+curl http://localhost:8080/hello
+curl http://localhost:8080/info  # callback-based
+curl http://localhost:8080/stats # inheritance-based
+```
+
+**POST requests:**
+
+```bash
+# Echo endpoint
+curl -X POST -d "Hello World" http://localhost:8080/echo          # callback-based
+curl -X POST -d "Hello World" http://localhost:8080/api/echo      # inheritance-based
+
+# Uppercase endpoint (inheritance-based only)
+curl -X POST -d "make me loud" http://localhost:8080/api/uppercase
+```
+
+**JSON endpoints:**
+
+```bash
+curl http://localhost:8080/api/info  # inheritance-based
+curl http://localhost:8080/headers   # callback-based
+```
+
+## Key Differences
+
+| Aspect               | Callback-Based                 | Inheritance-Based               |
+| -------------------- | ------------------------------ | ------------------------------- |
+| **Code Structure**   | Functional, separate functions | Object-oriented, class methods  |
+| **State Management** | Global/static variables        | Class member variables          |
+| **Routing**          | Manual if/else logic           | Custom routing system with maps |
+| **Extensibility**    | Add more callbacks             | Override more virtual methods   |
+| **Complexity**       | Simpler, more direct           | More sophisticated, flexible    |
+| **Memory**           | Lower overhead                 | Slightly higher overhead        |
+| **Maintenance**      | Good for small servers         | Better for large applications   |

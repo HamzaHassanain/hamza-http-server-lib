@@ -100,13 +100,7 @@ namespace hamza_http
     void http_server::on_exception_occurred(const std::exception &e)
     {
         if (error_callback)
-        {
             error_callback(e);
-        }
-        else
-        {
-            throw std::runtime_error("No error handler registered");
-        }
     }
 
     /**
