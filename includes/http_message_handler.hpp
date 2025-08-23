@@ -17,10 +17,10 @@ namespace hamza_http
         mutable std::mutex data_mutex;
 
     public:
-        http_handled_data handle(std::shared_ptr<hamza_socket::socket> sock_ptr, const hamza_socket::data_buffer &message)
+        http_handled_data handle(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message)
         {
             std::lock_guard<std::mutex> lock(data_mutex);
-            auto socket_key = sock_ptr->get_bound_address().to_string();
+            auto socket_key = conn->get_remote_address().to_string();
 
             if (under_handling_data.find(socket_key) != under_handling_data.end())
             {

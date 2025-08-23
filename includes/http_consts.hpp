@@ -1,9 +1,16 @@
 #pragma once
 
 #include <string>
+#include <algorithm>
 
 namespace hamza_http
 {
+
+    // Maximum number of pending connections
+    constexpr int BACKLOG_SIZE = 1024 * 1024;
+
+    // Maximum number of open file descriptors
+    constexpr int MAX_FILE_DESCRIPTORS = 1024 * 32;
 
     // HTTP Version Constants
     constexpr const char *HTTP_VERSION_1_0 = "HTTP/1.0";
@@ -45,4 +52,10 @@ namespace hamza_http
     // HTTP Line Endings
     constexpr const char *CRLF = "\r\n";
     constexpr const char *DOUBLE_CRLF = "\r\n\r\n";
+
+    /// @brief Convert string to uppercase.
+    /// @param input String to convert
+    /// @note does not modify the original string, returns a new uppercase string
+    /// @return Uppercase version of input string
+    std::string to_upper_case(const std::string &input);
 }

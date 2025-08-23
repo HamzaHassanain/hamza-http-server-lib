@@ -149,3 +149,4 @@ test_server
 .vscode/
 .env
 app.js
+*.log

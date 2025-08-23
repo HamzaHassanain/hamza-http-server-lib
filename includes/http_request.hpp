@@ -36,11 +36,8 @@ namespace hamza_http
         /// Request body content
         std::string body;
 
-        /// Client socket connection
-        std::shared_ptr<hamza::socket> client_socket;
-
-        /// Function to close the connection when needed
-        std::function<void(std::shared_ptr<hamza::socket>)> close_connection;
+        /// Function to close the connection when needed (closes the current client only, it shall know what to close)
+        std::function<void()> close_connection;
 
         /**
          * @brief Private constructor for internal use by http_server.
@@ -49,15 +46,14 @@ namespace hamza_http
          * @param version HTTP version
          * @param headers Request headers
          * @param body Request body
-         * @param client_socket Associated client socket
+         * @param close_connection Function to close the associated connection
          *
          * This constructor is private and can only be called by the http_server
          * class to ensure proper request object creation and lifecycle management.
          */
         http_request(const std::string &method, const std::string &uri, const std::string &version,
                      const std::multimap<std::string, std::string> &headers,
-                     const std::string &body,
-                     std::shared_ptr<hamza::socket> client_socket);
+                     const std::string &body, std::function<void()> close_connection);
 
     public:
         // Copy operations - DELETED for resource safety

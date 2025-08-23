@@ -8,15 +8,16 @@
 namespace hamza_http
 {
     http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
-                                 std::shared_ptr<hamza::socket> client_socket)
-        : version(version), headers(headers), client_socket(client_socket)
+                                 std::function<void()> close_connection,
+                                 std::function<void(const std::string &)> send_message)
+        : version(version), headers(headers), close_connection(close_connection), send_message(send_message)
     {
 
         std::multimap<std::string, std::string> lower_case_headers;
 
         for (const auto &header : headers)
         {
-            lower_case_headers.insert({hamza::to_upper_case(header.first), header.second});
+            lower_case_headers.insert({to_upper_case(header.first), header.second});
         }
         this->headers = std::move(lower_case_headers);
     }
@@ -25,18 +26,19 @@ namespace hamza_http
         : version(std::move(other.version)), status_code(other.status_code),
           status_message(std::move(other.status_message)), headers(std::move(other.headers)),
           trailers(std::move(other.trailers)), body(std::move(other.body)),
-          client_socket(std::move(other.client_socket)), close_connection(std::move(other.close_connection))
+          send_message(std::move(other.send_message)), close_connection(std::move(other.close_connection))
     {
-        other.status_code = 0;       // Invalidate the moved-from response
-        other.client_socket.reset(); // Reset the moved-from socket
+        other.status_code = 0;            // Invalidate the moved-from response
+        other.send_message = nullptr;     // Reset the moved-from send_message
+        other.close_connection = nullptr; // Reset the moved-from close_connection
     }
 
     bool http_response::validate() const
     {
-        if (!client_socket)
-        {
-            return false;
-        }
+        // if (!client_socket)
+        // {
+        //     return false;
+        // }
 
         return true;
     }
@@ -48,7 +50,7 @@ namespace hamza_http
 
         for (const auto &header : headers)
         {
-            response_stream << hamza::to_upper_case(header.first) << ": " << header.second << "\r\n";
+            response_stream << to_upper_case(header.first) << ": " << header.second << "\r\n";
         }
 
         response_stream << "\r\n"
@@ -56,7 +58,7 @@ namespace hamza_http
 
         for (const auto &trailer : trailers)
         {
-            response_stream << hamza::to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
+            response_stream << to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
         }
 
         return response_stream.str();
@@ -81,12 +83,12 @@ namespace hamza_http
     void http_response::add_trailer(const std::string &name, const std::string &value)
     {
 
-        trailers.insert({hamza::to_upper_case(name), value});
+        trailers.insert({to_upper_case(name), value});
     }
 
     void http_response::add_header(const std::string &name, const std::string &value)
     {
-        headers.insert({hamza::to_upper_case(name), value});
+        headers.insert({to_upper_case(name), value});
     }
 
     std::string http_response::get_body() const
@@ -112,7 +114,7 @@ namespace hamza_http
     std::vector<std::string> http_response::get_header(const std::string &name) const
     {
         std::vector<std::string> values;
-        auto range = headers.equal_range(hamza::to_upper_case(name));
+        auto range = headers.equal_range(to_upper_case(name));
         for (auto it = range.first; it != range.second; ++it)
         {
             values.push_back(it->second);
@@ -123,7 +125,7 @@ namespace hamza_http
     std::vector<std::string> http_response::get_trailer(const std::string &name) const
     {
         std::vector<std::string> values;
-        auto range = trailers.equal_range(hamza::to_upper_case(name));
+        auto range = trailers.equal_range(to_upper_case(name));
         for (auto it = range.first; it != range.second; ++it)
         {
             values.push_back(it->second);
@@ -137,7 +139,7 @@ namespace hamza_http
         {
             if (validate())
             {
-                close_connection(client_socket);
+                close_connection();
             }
             else
             {
@@ -157,7 +159,7 @@ namespace hamza_http
         {
             if (validate())
             {
-                client_socket->send_on_connection(hamza::data_buffer(to_string()));
+                send_message(to_string());
             }
             else
             {

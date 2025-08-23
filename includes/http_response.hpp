@@ -44,11 +44,11 @@ namespace hamza_http
         /// Response body content
         std::string body;
 
-        /// Client socket connection
-        std::shared_ptr<hamza::socket> client_socket;
+        /// Function to send a message to the client
+        std::function<void(const std::string &)> send_message;
 
-        /// Function to close the connection when response is complete
-        std::function<void(std::shared_ptr<hamza::socket>)> close_connection;
+        /// Function to close the connection when needed (closes the current client only, it shall know what to close)
+        std::function<void()> close_connection;
 
         /**
          * @brief Validate the response before sending.
@@ -63,13 +63,14 @@ namespace hamza_http
          * @brief Private constructor for internal use by http_server.
          * @param version HTTP version
          * @param headers Initial headers
-         * @param client_socket Associated client socket
+         * @param close_connection Function to close the associated connection
          *
          * This constructor is private and can only be called by the http_server
          * class to ensure proper response object creation and lifecycle management.
          */
         http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
-                      std::shared_ptr<hamza::socket> client_socket);
+                      std::function<void()> close_connection,
+                      std::function<void(const std::string &)> send_message);
 
     public:
         /// Allow http_server to access private constructor

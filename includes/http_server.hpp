@@ -33,13 +33,20 @@ namespace hamza_http
     class http_server : public hamza_socket::epoll_server
     {
     private:
+        /// The HTTP message handler instance, that parses the message, makes sure we have a valid HTTP request
         http_message_handler handler;
+
+        /// Timeout for client connections
+        int timeout_milliseconds;
+
+        /// Shared pointer to the server socket
+        std::shared_ptr<hamza_socket::socket> server_socket;
 
         /// Callback for handling HTTP requests and generating responses
         std::function<void(http_request &, http_response &)> request_callback;
 
         /// Callback for handling server and network errors
-        std::function<void(std::shared_ptr<hamza_socket::socket_exception>)> error_callback;
+        std::function<void(const std::exception &)> error_callback;
 
         /// Callback triggered when new client connects
         std::function<void(std::shared_ptr<hamza_socket::connection>)> client_connected_callback;
@@ -51,7 +58,7 @@ namespace hamza_http
         std::function<void()> listen_success_callback;
 
         /// Callback triggered when server stops
-        std::function<void()> server_stopped_callback;
+        std::function<void()> server_shutdown_callback;
 
         /// Callback triggered during server idle periods (select timeout)
         std::function<void()> waiting_for_activity_callback;
@@ -59,72 +66,73 @@ namespace hamza_http
     protected:
         /**
          * @brief Parse HTTP request and invoke user callback.
-         * @param sock_ptr Client socket that sent the request
+         * @param conn Client connection that sent the request
          * @param message Raw HTTP request data
          * @throws std::runtime_error if request callback is not set
          * @throws std::runtime_error for Content-Length validation errors
          * @note Automatically closes connection on empty messages
          * @note Handles HTTP/1.1 request parsing including headers and body
+         * @note calles on_request_received() for further processing
          */
-        void on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message) override;
-
-        /**
-         * @brief Handle HTTP request processing.
-         * @param request Parsed HTTP request object
-         * @param response HTTP response object to populate
-         */
-        virtual void on_request_received(http_request &request, http_response &response);
+        void on_message_received(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message) override;
 
         /**
          * @brief Handle server startup completion.
          * @note Calls user-provided listen success callback if set
          */
-        virtual void on_server_listen() override;
+        virtual void on_listen_success() override;
 
         /**
          * @brief Handle server shutdown completion.
          * @note Calls user-provided server stopped callback if set
          */
-        virtual void on_server_stopped() override;
+        virtual void on_shutdown_success() override;
 
         /**
          * @brief Handle server exceptions and errors.
-         * @param e Socket exception that occurred
+         * @param e Exception that occurred
          * @note Forwards to user-provided error callback if set
          */
-        virtual void on_exception(std::shared_ptr<hamza::socket_exception> e) override;
+        virtual void on_exception_occurred(const std::exception &e) override;
 
         /**
          * @brief Handle client disconnection events.
-         * @param sock_ptr Client socket that disconnected
-         * @note Calls user-provided client disconnect callback if set
+         * @param conn Client connection that was opened
+         * @note Calls user-provided client connection opened callback if set
          */
-        virtual void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr) override;
+        virtual void on_connection_opened(std::shared_ptr<hamza_socket::connection> conn) override;
 
         /**
          * @brief Handle new client connection events.
-         * @param sock_ptr Newly connected client socket
-         * @note Calls user-provided client connected callback if set
+         * @param conn the connection that will be closed
+         * @note Calls user-provided client connection closed callback if set
          */
-        virtual void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr) override;
+        virtual void on_connection_closed(std::shared_ptr<hamza_socket::connection> conn) override;
 
         /**
-         * @brief Handle server idle periods (select timeout).
+         * @brief Handle server idle periods
          * @note Calls user-provided waiting callback if set
          * @note Useful for periodic maintenance tasks
          */
         virtual void on_waiting_for_activity() override;
 
+        /**
+         * @brief Handle HTTP request processing.
+         * @param request Parsed HTTP request object
+         * @param response HTTP response object to populate
+         * @note Calls user-provided request callback if set
+         */
+        virtual void on_request_received(http_request &request, http_response &response);
+
     public:
         /**
          * @brief Construct HTTP server bound to specified socket address.
          * @param addr Socket address (IP and port) to bind server to
-         * @param timeout_seconds Timeout duration in seconds for select() calls
-         * @param timeout_microseconds Timeout duration in microseconds for select() calls
+         * @param timeout_milliseconds Timeout duration in milliseconds for epoll calls
          * @throws socket_exception for socket creation, binding, or listening errors
          * @note Inherits all TCP server functionality and error handling
          */
-        explicit http_server(const hamza::socket_address &addr, int timeout_seconds = 1, int timeout_microseconds = 0);
+        explicit http_server(const hamza_socket::socket_address &addr, int timeout_milliseconds = 1000);
 
         /**
          * @brief Construct HTTP server with IP address and port.
@@ -134,8 +142,8 @@ namespace hamza_http
          * @note Convenience constructor that creates socket_address internally
          * @note Defaults to IPv4 address family
          */
-        explicit http_server(const std::string &ip, int port, int timeout_seconds = 1, int timeout_microseconds = 0)
-            : http_server(hamza::socket_address(hamza::ip_address(ip), hamza::port(port), hamza::family(hamza::IPV4)), timeout_seconds, timeout_microseconds) {}
+        explicit http_server(int port, const std::string &ip = "0.0.0.0", int timeout_milliseconds = 1000)
+            : http_server(hamza_socket::socket_address(hamza_socket::port(port), hamza_socket::ip_address(ip), hamza_socket::family(hamza_socket::IPV4)), timeout_milliseconds) {}
 
         // Copy and move operations - DELETED for resource safety
         http_server(const http_server &) = delete;
@@ -175,7 +183,7 @@ namespace hamza_http
          * @note Receives socket_exception objects with error details
          * @note Should handle logging, recovery, or graceful degradation
          */
-        void set_error_callback(std::function<void(std::shared_ptr<hamza::socket_exception>)> callback);
+        void set_error_callback(std::function<void(const std::exception &)> callback);
 
         /**
          * @brief Set callback for new client connections.
@@ -183,7 +191,7 @@ namespace hamza_http
          * @note Optional callback - can be nullptr
          * @note Useful for connection logging, rate limiting, or authentication
          */
-        void set_client_connected_callback(std::function<void(std::shared_ptr<hamza::socket>)> callback);
+        void set_client_connected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback);
 
         /**
          * @brief Set callback for client disconnections.
@@ -191,7 +199,7 @@ namespace hamza_http
          * @note Optional callback - can be nullptr
          * @note Useful for cleanup, session management, or analytics
          */
-        void set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza::socket>)> callback);
+        void set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback);
 
         /**
          * @brief Set callback for server idle periods.
@@ -201,5 +209,14 @@ namespace hamza_http
          * @note Useful for periodic maintenance, statistics, or health checks
          */
         void set_waiting_for_activity_callback(std::function<void()> callback);
+
+        /**
+         * @brief Start listening for incoming HTTP requests.
+         * @note just calls the epoll_server::listen() method.
+         */
+        virtual void listen()
+        {
+            epoll_server::listen(timeout_milliseconds);
+        }
     };
 }

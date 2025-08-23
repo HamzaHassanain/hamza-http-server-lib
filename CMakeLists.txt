@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(http_server)
 
-
 # Find Git package for submodule handling
 find_package(Git QUIET)
 
@@ -36,32 +35,6 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
         endif()
     endif()
 endif()
-
-# Check if submodules exist
-set(REQUIRED_SUBMODULES "socket-lib")  # Add more submodules here as needed
-foreach(submodule ${REQUIRED_SUBMODULES})
-    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/libs/${submodule}/CMakeLists.txt")
-        message(FATAL_ERROR "The ${submodule} submodule was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
-    endif()
-endforeach()
-
-
-# define a variable called debug, that I can acess in a c++ code, to enable debugging
-set(DEBUG_MODE ON CACHE BOOL "Enable Debug Mode") 
-
-if(DEBUG_MODE)
-    add_definitions(-DDEBUG_MODE)
-endif()
-
-
-file(GLOB SRC_FILES src/*.cpp)
-
-
-set(CMAKE_CXX_STANDARD 17)
-include_directories(${CMAKE_SOURCE_DIR}/includes)
-include_directories(${CMAKE_SOURCE_DIR}/libs)
-
-
 
 
 # Function to read .env file and set variables
@@ -99,12 +72,34 @@ load_env_file(${CMAKE_SOURCE_DIR}/.env)
 
 
 
-if(LOCAL_TEST AND LOCAL_TEST STREQUAL "1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+# Check if submodules exist
+set(REQUIRED_SUBMODULES "socket-lib")  # Add more submodules here as needed
+foreach(submodule ${REQUIRED_SUBMODULES})
+    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/libs/${submodule}/CMakeLists.txt")
+        message(FATAL_ERROR "The ${submodule} submodule was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
+    endif()
+endforeach()
+
+# define a variable called debug, that I can acess in a c++ code, to enable debugging
+set(DEBUG_MODE ON CACHE BOOL "Enable Debug Mode") 
+
+if(DEBUG_MODE)
+    add_definitions(-DDEBUG_MODE)
 endif()
 
+
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
+
+
+file(GLOB SRC_FILES src/*.cpp)
+
+# link all cpp files inside framework folder, framework/src
+
+set(CMAKE_CXX_STANDARD 17)
+# Add include directories for all libraries
+include_directories(${CMAKE_SOURCE_DIR}/includes)
+include_directories(${CMAKE_SOURCE_DIR}/libs)
 
 # Add include directories for each submodule
 foreach(submodule ${REQUIRED_SUBMODULES})
@@ -122,13 +117,23 @@ foreach(submodule ${REQUIRED_SUBMODULES})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_BACKUP}")  # Restore warnings for main project
 endforeach()
 
+if(HTTP_LOCAL_TEST AND HTTP_LOCAL_TEST STREQUAL "1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif()
 
 
-if(LOCAL_TEST AND LOCAL_TEST STREQUAL "1")
+
+
+
+if(HTTP_LOCAL_TEST AND HTTP_LOCAL_TEST STREQUAL "1")
     add_executable(  http_server app.cpp ${SRC_FILES}   )
 else()
     add_library(http_server STATIC ${SRC_FILES})
 endif()
 
+
+# Link libraries for each submodule
 set(SUBMODULE_LIBRARIES "socket_lib")  # Add more library names here as needed
 target_link_libraries(http_server ${SUBMODULE_LIBRARIES})

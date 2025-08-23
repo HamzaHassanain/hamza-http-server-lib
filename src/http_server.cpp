@@ -1,4 +1,6 @@
 #include <http_server.hpp>
+#include <http_consts.hpp>
+#include <socket-lib/includes/utilities.hpp>
 #include <iostream>
 #include <sstream>
 #include <chrono>
@@ -10,7 +12,16 @@ namespace hamza_http
      * Delegates socket creation, binding, and listening to parent class.
      * HTTP-specific functionality is added through callback overrides.
      */
-    http_server::http_server(const hamza::socket_address &addr, int timeout_seconds, int timeout_microseconds) : hamza::tcp_server(addr, timeout_seconds, timeout_microseconds) {}
+    http_server::http_server(const hamza_socket::socket_address &addr, int timeout_milliseconds) : hamza_socket::epoll_server(MAX_FILE_DESCRIPTORS)
+    {
+        this->timeout_milliseconds = timeout_milliseconds;
+        this->server_socket = hamza_socket::make_listener_socket(addr.get_port().get(),
+                                                                 addr.get_ip_address().get(),
+                                                                 BACKLOG_SIZE);
+        if (!this->server_socket)
+            throw std::runtime_error("Failed to create listener socket");
+        this->register_listener_socket(this->server_socket);
+    }
 
     /**
      * Parse complete HTTP request and invoke user-defined request handler.
@@ -18,32 +29,26 @@ namespace hamza_http
      * Creates request/response objects and provides connection management functions.
      */
 
-    void http_server::on_message_received(std::shared_ptr<hamza::socket> sock_ptr, const hamza::data_buffer &message)
+    void http_server::on_message_received(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message)
     {
-        auto [completed, method, uri, version, headers, body] = handler.handle(sock_ptr, message);
+        auto [completed, method, uri, version, headers, body] = handler.handle(conn, message);
 
         if (!completed)
             return;
 
-        // if (method.empty() or uri.empty() or version.empty())
-        // {
-        //     this->close_connection(sock_ptr);
-        //     return;
-        // }
-
-        auto close_connection_for_objects = [this](std::shared_ptr<hamza::socket> client_socket)
+        auto close_connection_for_objects = [this, conn]()
         {
-            this->close_connection(client_socket);
+            this->close_connection(conn);
         };
-
+        auto send_message_for_request = [this, conn](const std::string &message)
+        {
+            this->send_message(conn, hamza_socket::data_buffer(message));
+        };
         // Create HTTP request object with parsed data
-        http_request request(method, uri, version, headers, body, sock_ptr);
+        http_request request(method, uri, version, headers, body, close_connection_for_objects);
 
         // Create HTTP response object with default HTTP/1.1 version
-        http_response response("HTTP/1.1", {}, sock_ptr);
-        // Provide connection closure capability to both objects
-        request.close_connection = close_connection_for_objects;
-        response.close_connection = close_connection_for_objects;
+        http_response response("HTTP/1.1", {}, close_connection_for_objects, send_message_for_request);
 
         // Invoke user-defined request handler with parsed request and response objects
         // User callback populates response and optionally closes connection
@@ -67,7 +72,7 @@ namespace hamza_http
      * Calls user-provided callback to notify application that server is listening.
      * Useful for logging startup messages or performing initialization tasks.
      */
-    void http_server::on_server_listen()
+    void http_server::on_listen_success()
     {
         if (listen_success_callback)
             listen_success_callback();
@@ -78,10 +83,10 @@ namespace hamza_http
      * Calls user-provided callback to notify application that server has stopped.
      * Useful for cleanup tasks, final logging, or resource deallocation.
      */
-    void http_server::on_server_stopped()
+    void http_server::on_shutdown_success()
     {
-        if (server_stopped_callback)
-            server_stopped_callback();
+        if (server_shutdown_callback)
+            server_shutdown_callback();
     }
 
     /**
@@ -89,7 +94,7 @@ namespace hamza_http
      * Provides centralized error handling for all server and network errors.
      * User callback can implement logging, recovery, or graceful degradation.
      */
-    void http_server::on_exception(std::shared_ptr<hamza::socket_exception> e)
+    void http_server::on_exception_occurred(const std::exception &e)
     {
         if (error_callback)
         {
@@ -104,19 +109,19 @@ namespace hamza_http
     /**
      * Handle client disconnection events.
      */
-    void http_server::on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr)
+    void http_server::on_connection_closed(std::shared_ptr<hamza_socket::connection> conn)
     {
         if (client_disconnected_callback)
-            client_disconnected_callback(sock_ptr);
+            client_disconnected_callback(conn);
     }
 
     /**
      * Handle new client connection events.
      */
-    void http_server::on_client_connected(std::shared_ptr<hamza::socket> sock_ptr)
+    void http_server::on_connection_opened(std::shared_ptr<hamza_socket::connection> conn)
     {
         if (client_connected_callback)
-            client_connected_callback(sock_ptr);
+            client_connected_callback(conn);
     }
 
     /**
@@ -153,14 +158,14 @@ namespace hamza_http
      */
     void http_server::set_server_stopped_callback(std::function<void()> callback)
     {
-        server_stopped_callback = callback;
+        server_shutdown_callback = callback;
     }
 
     /**
      * Set callback function for error handling.
      * Receives all server and network exceptions for centralized error management.
      */
-    void http_server::set_error_callback(std::function<void(std::shared_ptr<hamza::socket_exception>)> callback)
+    void http_server::set_error_callback(std::function<void(const std::exception &)> callback)
     {
         error_callback = callback;
     }
@@ -168,7 +173,7 @@ namespace hamza_http
     /**
      * Set callback function for new client connections.
      */
-    void http_server::set_client_connected_callback(std::function<void(std::shared_ptr<hamza::socket>)> callback)
+    void http_server::set_client_connected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback)
     {
         client_connected_callback = callback;
     }
@@ -176,7 +181,7 @@ namespace hamza_http
     /**
      * Set callback function for client disconnections.
      */
-    void http_server::set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza::socket>)> callback)
+    void http_server::set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback)
     {
         client_disconnected_callback = callback;
     }
