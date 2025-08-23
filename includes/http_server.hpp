@@ -144,7 +144,13 @@ namespace hamza_http
                                          const std::string &method,
                                          const std::string &uri,
                                          const std::string &version,
-                                         const std::string &body) {};
+                                         const std::string &body)
+        {
+            if (headers_received_callback)
+            {
+                headers_received_callback(conn, headers, method, uri, version, body);
+            }
+        };
 
     public:
         /**
