@@ -3,7 +3,7 @@
 #include <socket_address.hpp>
 #include <http_message_handler.hpp>
 #include <socket.hpp>
-#include <tcp_server.hpp>
+#include <epoll_server.hpp>
 #include <http_request.hpp>
 #include <http_response.hpp>
 #include <string>
@@ -14,19 +14,23 @@ namespace hamza_http
      * @brief High-level HTTP/1.1 server built on top of TCP server infrastructure.
      *
      * This class provides a complete HTTP server implementation that handles HTTP
-     * request parsing, response generation, and connection management. It extends
-     * the tcp_server class
+     * request parsing, response generation, and connection management. It implements
+     * the tcp_server interface
      *
-     * The server uses a callback-driven architecture where application logic
-     * is implemented through user-provided callback functions. This allows
-     * for clean separation between HTTP protocol handling and business logic.
+     * The server uses a 2 architectures
+     *
+     * 1-   callback-driven architecture where application logic
+     *      is implemented through user-provided callback functions. This allows
+     *      for clean separation between HTTP protocol handling and business logic.
+     *
+     * 2-   Extend the http_server and override virtual methods to customize behavior.
      *
      * @note Currently implements HTTP/1.1 with "Connection: close" semantics
      * @note Supports GET, POST, and other HTTP methods through generic parsing
      * @note Thread-safe through underlying tcp_server implementation
      * @note Move-only design prevents accidental copying of server resources
      */
-    class http_server : public hamza::tcp_server
+    class http_server : public hamza_socket::epoll_server
     {
     private:
         http_message_handler handler;
@@ -35,13 +39,13 @@ namespace hamza_http
         std::function<void(http_request &, http_response &)> request_callback;
 
         /// Callback for handling server and network errors
-        std::function<void(std::shared_ptr<hamza::socket_exception>)> error_callback;
+        std::function<void(std::shared_ptr<hamza_socket::socket_exception>)> error_callback;
 
         /// Callback triggered when new client connects
-        std::function<void(std::shared_ptr<hamza::socket>)> client_connected_callback;
+        std::function<void(std::shared_ptr<hamza_socket::connection>)> client_connected_callback;
 
         /// Callback triggered when client disconnects
-        std::function<void(std::shared_ptr<hamza::socket>)> client_disconnected_callback;
+        std::function<void(std::shared_ptr<hamza_socket::connection>)> client_disconnected_callback;
 
         /// Callback triggered when server starts listening successfully
         std::function<void()> listen_success_callback;

@@ -64,12 +64,12 @@ int main()
 
     auto client_connected_callback = [](std::shared_ptr<hamza::socket> sock_ptr)
     {
-        std::cout << "New client connected: " << sock_ptr->get_remote_address() << std::endl;
+        std::cout << "New client connected: " << sock_ptr->get_bound_address() << std::endl;
     };
 
     auto client_disconnected_callback = [](std::shared_ptr<hamza::socket> sock_ptr)
     {
-        std::cout << "Client disconnected: " << sock_ptr->get_remote_address() << std::endl;
+        std::cout << "Client disconnected: " << sock_ptr->get_bound_address() << std::endl;
     };
 
     auto listen_success_callback = []()

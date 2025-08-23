@@ -35,7 +35,7 @@ protected:
 
     void on_server_listen() override
     {
-        std::cout << "Server is listening on " << get_remote_address() << std::endl;
+        std::cout << "Server is listening on " << get_bound_address() << std::endl;
     }
     void on_server_stopped() override
     {
@@ -43,11 +43,11 @@ protected:
     }
     void on_client_connected(std::shared_ptr<hamza::socket> sock_ptr) override
     {
-        std::cout << "Client connected: " << sock_ptr->get_remote_address().to_string() << std::endl;
+        std::cout << "Client connected: " << sock_ptr->get_bound_address().to_string() << std::endl;
     }
     void on_client_disconnect(std::shared_ptr<hamza::socket> sock_ptr) override
     {
-        std::cout << "Client disconnected: " << sock_ptr->get_remote_address().to_string() << std::endl;
+        std::cout << "Client disconnected: " << sock_ptr->get_bound_address().to_string() << std::endl;
     }
     void on_waiting_for_activity()
     {
