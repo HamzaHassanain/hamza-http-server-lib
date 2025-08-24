@@ -467,18 +467,24 @@ cd .. # Go to project root
 
 ### Compile the Examples
 
+**Important Note:** Since the main library is built with AddressSanitizer in development mode, the examples must also be compiled with the same flags to avoid linking errors.
+
 **Callback-Based Server:**
 
 ```bash
 cd examples
-g++ -std=c++17 -I../includes -L../build -o callback_server callback_based_server.cpp -lhttp_server -pthread
+make callback
+# Or manually:
+g++ -std=c++17 -fsanitize=address -g -I../includes -I../libs/socket-lib/includes -L../build -L../build/libs/socket-lib -o callback_server callback_based_server.cpp -lhttp_server -lsocket_lib -pthread
 ```
 
 **Inheritance-Based Server:**
 
 ```bash
 cd examples
-g++ -std=c++17 -I../includes -L../build -o inheritance_server inheritance_based_server.cpp -lhttp_server -pthread
+make inheritance
+# Or manually:
+g++ -std=c++17 -fsanitize=address -g -I../includes -I../libs/socket-lib/includes -L../build -L../build/libs/socket-lib -o inheritance_server inheritance_based_server.cpp -lhttp_server -lsocket_lib -pthread
 ```
 
 ### Run the Servers

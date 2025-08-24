@@ -88,9 +88,9 @@ if(DEBUG_MODE)
 endif()
 
 
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
-
+if(HTTP_LOCAL_TEST AND HTTP_LOCAL_TEST STREQUAL "1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -fsanitize=address -g -O0")
+endif()
 
 file(GLOB SRC_FILES src/*.cpp)
 

@@ -6,7 +6,6 @@
 #include <data_buffer.hpp>
 #include <memory>
 #include <map>
-#include <mutex>
 #include <sstream>
 namespace hamza_http
 {
@@ -14,12 +13,10 @@ namespace hamza_http
     class http_message_handler
     {
         std::map<std::string, http_data_under_handling> under_handling_data;
-        mutable std::mutex data_mutex;
 
     public:
         http_handled_data handle(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message)
         {
-            std::lock_guard<std::mutex> lock(data_mutex);
             auto socket_key = conn->get_remote_address().to_string();
 
             if (under_handling_data.find(socket_key) != under_handling_data.end())
