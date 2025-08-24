@@ -5,6 +5,8 @@
 #include <memory>
 #include <map>
 
+#include <ctime>
+
 namespace hamza_http
 {
     http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
@@ -43,19 +45,32 @@ namespace hamza_http
         return true;
     }
 
+    std::string get_current_date()
+    {
+        // Get current time
+        std::time_t now = std::time(nullptr);
+        std::tm tm = *std::gmtime(&now);
+
+        // Format date according to RFC 1123
+        char buffer[30];
+        std::strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+        return std::string(buffer);
+    }
+
     std::string http_response::to_string() const
     {
         std::ostringstream response_stream;
         response_stream << version << " " << status_code << " " << status_message << "\r\n";
-
+        response_stream << "Date: " << get_current_date() << "\r\n";
         for (const auto &header : headers)
         {
             response_stream << to_upper_case(header.first) << ": " << header.second << "\r\n";
         }
-
-        response_stream << "\r\n"
-                        << body;
-
+        if (body.size())
+            response_stream << "\r\n"
+                            << body;
+        else
+            response_stream << "\r\n";
         for (const auto &trailer : trailers)
         {
             response_stream << to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
