@@ -1,9 +1,9 @@
+#include "../http-lib.hpp"
+
 #include <iostream>
 #include <string>
 #include <map>
 #include <functional>
-#include <http_server.hpp>
-#include <socket_address.hpp>
 
 /**
  * @brief Example HTTP server using inheritance-based architecture

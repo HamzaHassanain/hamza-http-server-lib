@@ -1,11 +1,12 @@
 #pragma once
 
-#include <socket_address.hpp>
-#include <http_message_handler.hpp>
-#include <socket.hpp>
-#include <epoll_server.hpp>
-#include <http_request.hpp>
-#include <http_response.hpp>
+#include "../libs/socket-lib/socket-lib.hpp"
+
+#include "http_message_handler.hpp"
+#include "http_request.hpp"
+#include "http_response.hpp"
+#include "http_consts.hpp"
+
 #include <string>
 
 namespace hamza_http

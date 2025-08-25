@@ -253,10 +253,13 @@ find_library(HAMZA_HTTP_LIB
     PATHS /path/to/hamza-http-server-lib/build
 )
 
+target_include_directories(my_app PRIVATE /path/to/hamza-http-lib/includes)
+# include "http-lib.hpp" in your cpp file for the full library
+# or use the includes directory directly
+
 # Link against the library
 add_executable(my_app main.cpp)
 target_link_libraries(my_app ${HAMZA_HTTP_LIB})
-target_include_directories(my_app PRIVATE /path/to/hamza-http-server-lib/includes)
 ```
 
 ## API Documentation
@@ -357,7 +360,7 @@ The library supports two main usage patterns:
 ### 1. Callback-Based Approach
 
 ```cpp
-#include <http_server.hpp>
+#include "http-lib.hpp"
 
 void handle_request(hamza_http::http_request &req, hamza_http::http_response &res) {
     res.set_status(200, "OK");
@@ -377,7 +380,7 @@ int main() {
 ### 2. Inheritance-Based Approach
 
 ```cpp
-#include <http_server.hpp>
+#include "http-lib.hpp"
 
 class MyServer : public hamza_http::http_server {
 public:
@@ -475,7 +478,7 @@ cd .. # Go to project root
 cd examples
 make callback
 # Or manually:
-g++ -std=c++17 -fsanitize=address -g -I../includes -I../libs/socket-lib/includes -L../build -L../build/libs/socket-lib -o callback_server callback_based_server.cpp -lhttp_server -lsocket_lib -pthread
+g++ -std=c++17 -fsanitize=address -g -L../build -L../build/libs/socket-lib -o callback_server callback_based_server.cpp -lhttp_server -lsocket_lib -pthread
 ```
 
 **Inheritance-Based Server:**
@@ -484,7 +487,7 @@ g++ -std=c++17 -fsanitize=address -g -I../includes -I../libs/socket-lib/includes
 cd examples
 make inheritance
 # Or manually:
-g++ -std=c++17 -fsanitize=address -g -I../includes -I../libs/socket-lib/includes -L../build -L../build/libs/socket-lib -o inheritance_server inheritance_based_server.cpp -lhttp_server -lsocket_lib -pthread
+g++ -std=c++17 -fsanitize=address -g -L../build -L../build/libs/socket-lib -o inheritance_server inheritance_based_server.cpp -lhttp_server -lsocket_lib -pthread
 ```
 
 ### Run the Servers

@@ -97,16 +97,16 @@ file(GLOB SRC_FILES src/*.cpp)
 # link all cpp files inside framework folder, framework/src
 
 set(CMAKE_CXX_STANDARD 17)
-# Add include directories for all libraries
-include_directories(${CMAKE_SOURCE_DIR}/includes)
-include_directories(${CMAKE_SOURCE_DIR}/libs)
+# # Add include directories for all libraries
+# include_directories(${CMAKE_SOURCE_DIR}/includes)
+# include_directories(${CMAKE_SOURCE_DIR}/libs)
 
-# Add include directories for each submodule
-foreach(submodule ${REQUIRED_SUBMODULES})
-    if(EXISTS "${PROJECT_SOURCE_DIR}/libs/${submodule}/includes")
-        include_directories(${CMAKE_SOURCE_DIR}/libs/${submodule}/includes)
-    endif()
-endforeach()
+# # Add include directories for each submodule
+# foreach(submodule ${REQUIRED_SUBMODULES})
+#     if(EXISTS "${PROJECT_SOURCE_DIR}/libs/${submodule}/includes")
+#         include_directories(${CMAKE_SOURCE_DIR}/libs/${submodule}/includes)
+#     endif()
+# endforeach()
 
 # Add subdirectories for each submodule
 foreach(submodule ${REQUIRED_SUBMODULES})

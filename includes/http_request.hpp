@@ -1,7 +1,9 @@
 #pragma once
 
-#include <socket.hpp>
-#include <http_consts.hpp>
+#include "../libs/socket-lib/socket-lib.hpp"
+
+#include "http_consts.hpp"
+
 #include <map>
 #include <functional>
 

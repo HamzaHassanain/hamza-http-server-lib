@@ -1,9 +1,9 @@
 #pragma once
 
-#include <socket.hpp>
-#include <http_handled_data.hpp>
-#include <http_data_under_handling.hpp>
-#include <data_buffer.hpp>
+#include "../libs/socket-lib/socket-lib.hpp"
+
+#include "http_handled_data.hpp"
+#include "http_data_under_handling.hpp"
 #include <memory>
 #include <map>
 #include <sstream>
