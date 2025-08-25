@@ -7,7 +7,7 @@
 #include <memory>
 #include <map>
 #include <sstream>
-namespace hamza_http
+namespace hh_http
 {
 
     class http_message_handler
@@ -15,7 +15,7 @@ namespace hamza_http
         std::map<std::string, http_data_under_handling> under_handling_data;
 
     public:
-        http_handled_data handle(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message)
+        http_handled_data handle(std::shared_ptr<hh_socket::connection> conn, const hh_socket::data_buffer &message)
         {
             auto socket_key = conn->get_remote_address().to_string();
 
@@ -27,7 +27,7 @@ namespace hamza_http
             return start_handling(socket_key, message);
         };
 
-        http_handled_data continue_handling(http_data_under_handling &data, const hamza_socket::data_buffer &message)
+        http_handled_data continue_handling(http_data_under_handling &data, const hh_socket::data_buffer &message)
         {
             if (data.type == handling_type::CHUNKED)
             {
@@ -77,7 +77,7 @@ namespace hamza_http
             return http_handled_data(false, data.method, data.uri, data.version, {}, "");
         }
 
-        http_handled_data start_handling(const std::string &socket_key, const hamza_socket::data_buffer &message)
+        http_handled_data start_handling(const std::string &socket_key, const hh_socket::data_buffer &message)
         {
             // Convert raw message to string stream for line-by-line parsing
 
@@ -147,12 +147,12 @@ namespace hamza_http
                     }
 
                     // Store header (multimap allows duplicate header names)
-                    headers.emplace(hamza_socket::to_upper_case(header_name), header_value);
+                    headers.emplace(hh_socket::to_upper_case(header_name), header_value);
                 }
             }
 
             std::size_t content_length = 0;
-            auto content_length_it = headers.find(hamza_socket::to_upper_case("content-length"));
+            auto content_length_it = headers.find(hh_socket::to_upper_case("content-length"));
             if (content_length_it != headers.end())
             {
                 content_length = std::stoull(content_length_it->second);
@@ -181,7 +181,7 @@ namespace hamza_http
                 }
             }
 
-            auto transfer_encoding = headers.find(hamza_socket::to_upper_case("Transfer-Encoding"));
+            auto transfer_encoding = headers.find(hh_socket::to_upper_case("Transfer-Encoding"));
             if (transfer_encoding != headers.end())
             {
                 // Handle chunked transfer encoding

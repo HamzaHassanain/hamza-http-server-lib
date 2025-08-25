@@ -5,19 +5,19 @@
 
 #include "../includes/http_server.hpp"
 
-namespace hamza_http
+namespace hh_http
 {
     /**
      * Construct HTTP server using base TCP server infrastructure.
      * Delegates socket creation, binding, and listening to parent class.
      * HTTP-specific functionality is added through callback overrides.
      */
-    http_server::http_server(const hamza_socket::socket_address &addr, int timeout_milliseconds) : hamza_socket::epoll_server(epoll_config::MAX_FILE_DESCRIPTORS)
+    http_server::http_server(const hh_socket::socket_address &addr, int timeout_milliseconds) : hh_socket::epoll_server(epoll_config::MAX_FILE_DESCRIPTORS)
     {
         this->timeout_milliseconds = timeout_milliseconds;
-        this->server_socket = hamza_socket::make_listener_socket(addr.get_port().get(),
-                                                                 addr.get_ip_address().get(),
-                                                                 epoll_config::BACKLOG_SIZE);
+        this->server_socket = hh_socket::make_listener_socket(addr.get_port().get(),
+                                                              addr.get_ip_address().get(),
+                                                              epoll_config::BACKLOG_SIZE);
         if (!this->server_socket)
             throw std::runtime_error("Failed to create listener socket");
         this->register_listener_socket(this->server_socket);
@@ -29,11 +29,11 @@ namespace hamza_http
      * Creates request/response objects and provides connection management functions.
      */
 
-    void http_server::on_message_received(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message)
+    void http_server::on_message_received(std::shared_ptr<hh_socket::connection> conn, const hh_socket::data_buffer &message)
     {
         auto [completed, method, uri, version, headers, body] = handler.handle(conn, message);
 
-        if (headers.size() >= 0)
+        if (static_cast<int>(headers.size()) >= 0)
             on_headers_received(conn, headers, method, uri, version, body);
 
         if (!completed)
@@ -45,7 +45,7 @@ namespace hamza_http
         };
         auto send_message_for_request = [this, conn](const std::string &message)
         {
-            this->send_message(conn, hamza_socket::data_buffer(message));
+            this->send_message(conn, hh_socket::data_buffer(message));
         };
         // Create HTTP request object with parsed data
         http_request request(method, uri, version, headers, body, close_connection_for_objects);
@@ -106,7 +106,7 @@ namespace hamza_http
     /**
      * Handle client disconnection events.
      */
-    void http_server::on_connection_closed(std::shared_ptr<hamza_socket::connection> conn)
+    void http_server::on_connection_closed(std::shared_ptr<hh_socket::connection> conn)
     {
         if (client_disconnected_callback)
             client_disconnected_callback(conn);
@@ -115,7 +115,7 @@ namespace hamza_http
     /**
      * Handle new client connection events.
      */
-    void http_server::on_connection_opened(std::shared_ptr<hamza_socket::connection> conn)
+    void http_server::on_connection_opened(std::shared_ptr<hh_socket::connection> conn)
     {
         if (client_connected_callback)
             client_connected_callback(conn);
@@ -170,7 +170,7 @@ namespace hamza_http
     /**
      * Set callback function for new client connections.
      */
-    void http_server::set_client_connected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback)
+    void http_server::set_client_connected_callback(std::function<void(std::shared_ptr<hh_socket::connection>)> callback)
     {
         client_connected_callback = callback;
     }
@@ -178,7 +178,7 @@ namespace hamza_http
     /**
      * Set callback function for client disconnections.
      */
-    void http_server::set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback)
+    void http_server::set_client_disconnected_callback(std::function<void(std::shared_ptr<hh_socket::connection>)> callback)
     {
         client_disconnected_callback = callback;
     }

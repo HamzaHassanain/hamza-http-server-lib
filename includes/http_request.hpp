@@ -7,7 +7,7 @@
 #include <map>
 #include <functional>
 
-namespace hamza_http
+namespace hh_http
 {
     /**
      * @brief Represents an HTTP request with move-only semantics.

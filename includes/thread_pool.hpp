@@ -9,7 +9,7 @@
 #include <vector>
 #include <atomic>
 #include <iostream>
-namespace hamza_http
+namespace hh_http
 {
 
     class thread_pool

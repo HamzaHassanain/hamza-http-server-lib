@@ -4,7 +4,7 @@
 #include "http_consts.hpp"
 #include <map>
 #include <functional>
-namespace hamza_http
+namespace hh_http
 {
     /**
      * @brief Represents an HTTP response with move-only semantics.
@@ -44,12 +44,12 @@ namespace hamza_http
         /// Response body content
         std::string body;
 
-        /// Function to send a message to the client
-        std::function<void(const std::string &)> send_message;
-
+        
         /// Function to close the connection when needed (closes the current client only, it shall know what to close)
         std::function<void()> close_connection;
-
+        
+        /// Function to send a message to the client
+        std::function<void(const std::string &)> send_message;
         /**
          * @brief Validate the response before sending.
          * @return true if response is valid, false otherwise

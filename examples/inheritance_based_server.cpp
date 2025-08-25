@@ -12,11 +12,11 @@
  * by overriding virtual methods to customize behavior.
  */
 
-class CustomHttpServer : public hamza_http::http_server
+class CustomHttpServer : public hh_http::http_server
 {
 private:
     // Route handler type
-    using RouteHandler = std::function<void(hamza_http::http_request &, hamza_http::http_response &)>;
+    using RouteHandler = std::function<void(hh_http::http_request &, hh_http::http_response &)>;
 
     // Route storage: method -> path -> handler
     std::map<std::string, std::map<std::string, RouteHandler>> routes;
@@ -27,7 +27,7 @@ private:
 
 public:
     CustomHttpServer(int port, const std::string &ip = "0.0.0.0")
-        : hamza_http::http_server(port, ip, 1000)
+        : hh_http::http_server(port, ip, 1000)
     {
         setup_routes();
     }
@@ -36,23 +36,23 @@ private:
     void setup_routes()
     {
         // GET routes
-        add_route("GET", "/", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("GET", "/", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_home(req, res); });
 
-        add_route("GET", "/stats", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("GET", "/stats", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_stats(req, res); });
 
-        add_route("GET", "/hello", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("GET", "/hello", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_hello(req, res); });
 
-        add_route("GET", "/api/info", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("GET", "/api/info", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_api_info(req, res); });
 
         // POST routes
-        add_route("POST", "/api/echo", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("POST", "/api/echo", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_api_echo(req, res); });
 
-        add_route("POST", "/api/uppercase", [this](hamza_http::http_request &req, hamza_http::http_response &res)
+        add_route("POST", "/api/uppercase", [this](hh_http::http_request &req, hh_http::http_response &res)
                   { handle_api_uppercase(req, res); });
     }
 
@@ -66,7 +66,7 @@ private:
     /**
      * @brief Override request processing with custom routing
      */
-    void on_request_received(hamza_http::http_request &request, hamza_http::http_response &response) override
+    void on_request_received(hh_http::http_request &request, hh_http::http_response &response) override
     {
         request_count++;
 
@@ -77,7 +77,7 @@ private:
 
         // Set common headers
         response.set_version("HTTP/1.1");
-        response.add_header("Server", "Custom-Hamza-HTTP-Server/1.0");
+        response.add_header("Server", "Custom-hh-HTTP-Server/1.0");
         response.add_header("Connection", "close");
         response.add_header("X-Request-ID", std::to_string(request_count));
 
@@ -97,25 +97,25 @@ private:
     /**
      * @brief Override connection opened for custom logging
      */
-    void on_connection_opened(std::shared_ptr<hamza_socket::connection> conn) override
+    void on_connection_opened(std::shared_ptr<hh_socket::connection> conn) override
     {
         connection_count++;
         std::cout << "🔗 Connection #" << connection_count << " opened from "
                   << conn->get_remote_address().to_string() << std::endl;
 
         // Call parent implementation (if needed)
-        hamza_http::http_server::on_connection_opened(conn);
+        hh_http::http_server::on_connection_opened(conn);
     }
 
     /**
      * @brief Override connection closed for custom cleanup
      */
-    void on_connection_closed(std::shared_ptr<hamza_socket::connection> conn) override
+    void on_connection_closed(std::shared_ptr<hh_socket::connection> conn) override
     {
         std::cout << "💔 Connection closed from " << conn->get_remote_address().to_string() << std::endl;
 
         // Call parent implementation (if needed)
-        hamza_http::http_server::on_connection_closed(conn);
+        hh_http::http_server::on_connection_closed(conn);
     }
 
     /**
@@ -162,7 +162,7 @@ private:
 
     // Route handler implementations
 
-    void handle_home(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_home(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "text/html; charset=utf-8");
@@ -207,14 +207,14 @@ private:
         )");
     }
 
-    void handle_hello(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_hello(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "text/plain");
         res.set_body("👋 Hello from the custom inheritance-based HTTP server!\n🏗️ Built with virtual method overrides!\n");
     }
 
-    void handle_stats(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_stats(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "text/html; charset=utf-8");
@@ -262,13 +262,13 @@ private:
         res.set_body(stats_html);
     }
 
-    void handle_api_info(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_api_info(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "application/json");
 
         std::string json_response = R"({
-    "server": "Custom Hamza HTTP Server",
+    "server": "Custom hh HTTP Server",
     "version": "1.0",
     "architecture": "inheritance-based",
     "features": [
@@ -297,7 +297,7 @@ private:
         res.set_body(json_response);
     }
 
-    void handle_api_echo(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_api_echo(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "application/json");
@@ -317,7 +317,7 @@ private:
         res.set_body(echo_json);
     }
 
-    void handle_api_uppercase(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_api_uppercase(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "application/json");
@@ -337,7 +337,7 @@ private:
         res.set_body(response_json);
     }
 
-    void handle_not_found(hamza_http::http_request &req, hamza_http::http_response &res)
+    void handle_not_found(hh_http::http_request &req, hh_http::http_response &res)
     {
         res.set_status(404, "Not Found");
         res.add_header("Content-Type", "text/html; charset=utf-8");
@@ -374,7 +374,7 @@ int main()
 {
     try
     {
-        if (!hamza_socket::initialize_socket_library())
+        if (!hh_socket::initialize_socket_library())
         {
             std::cerr << "Failed to initialize socket library." << std::endl;
             return 1;
@@ -393,7 +393,7 @@ int main()
         return 1;
     }
 
-    hamza_socket::cleanup_socket_library();
+    hh_socket::cleanup_socket_library();
 
     return 0;
 }

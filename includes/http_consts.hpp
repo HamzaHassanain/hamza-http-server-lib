@@ -3,7 +3,7 @@
 #include <string>
 #include <algorithm>
 
-namespace hamza_http
+namespace hh_http
 {
     namespace epoll_config
     {

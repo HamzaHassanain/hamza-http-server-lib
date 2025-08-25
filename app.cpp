@@ -1,56 +1,36 @@
-
 #include "http-lib.hpp"
 
-#include "includes/thread_pool.hpp"
 #include <functional>
 #include <iostream>
 
 int main()
 {
-    if (!hamza_socket::initialize_socket_library())
+    if (!hh_socket::initialize_socket_library())
     {
         std::cerr << "Failed to initialize socket library." << std::endl;
         return 1;
     }
 
-    auto server = std::make_shared<hamza_http::http_server>(12346);
-    hamza_http::thread_pool pool(std::thread::hardware_concurrency());
-    int ReqCnt = 0;
-    using reqT = hamza_http::http_request;
-    using resT = hamza_http::http_response;
-    using req = hamza_http::http_request;
-    using res = hamza_http::http_response;
+    auto server = std::make_shared<hh_http::http_server>(8080);
 
-    std::mutex mtx;
-    auto log_cnt = [&ReqCnt, &mtx]()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        std::cout << "Request count: " << ReqCnt << std::endl;
-        ReqCnt++;
-    };
+    using req = hh_http::http_request;
+    using res = hh_http::http_response;
 
-    auto handler_function = [&log_cnt]([[maybe_unused]] std::shared_ptr<reqT> request, std::shared_ptr<resT> response)
+    auto handler_function = []([[maybe_unused]] std::shared_ptr<req> request, std::shared_ptr<res> response)
     {
-        // Handle the request and prepare the response
         try
         {
             std::string your_headers = request->get_method() + " " + request->get_uri() + " " + request->get_version() + "\n";
-            // for (const auto &[key, value] : request->get_headers())
-            // {
-            //     your_headers += key + ": " + value + "\n";
-            // }
+
             if (request->get_method() == "POST")
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 std::cout << "POST ACC with " << request->get_body().size() << " bytes of data" << std::endl;
             }
-            // std::cout << "Handling request: " << your_headers << std::endl;
             response->set_status(200, "OK");
             response->add_header("Content-Type", "text/plain");
             response->add_header("Connection", "close");
 
             response->set_body(your_headers);
-            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             response->send();
             response->end();
         }
@@ -62,47 +42,16 @@ int main()
             response->end();
         }
     };
-    auto request_callback = [&pool, handler_function](req &request, res &response)
+    auto request_callback = [handler_function](req &request, res &response)
     {
         auto req_ptr = std::make_shared<req>(std::move(request));
         auto res_ptr = std::make_shared<res>(std::move(response));
-
-        pool.enqueue([handler_function, req_ptr, res_ptr]()
-                     { handler_function(req_ptr, res_ptr); });
-    };
-    auto server_stopped_callback = [&ReqCnt]()
-    {
-        std::cout << "Server stopped. Total requests handled: " << ReqCnt << std::endl;
-    };
-
-    auto server_error_callback = [](const std::exception &e)
-    {
-        std::cerr << "Server error occurred: " << e.what() << std::endl;
-    };
-
-    auto listen_success_callback = []()
-    {
-        std::cout << "Server is listening, PID: " << getpid() << std::endl;
-    };
-
-    auto on_client_connect = [](const std::shared_ptr<hamza_socket::connection> conn)
-    {
-        // std::cout << "Client connected: " << conn->get_remote_address() << std::endl;
-    };
-
-    auto on_client_disconnect = [](const std::shared_ptr<hamza_socket::connection> client_socket)
-    {
-        std::cout << "Client disconnected: " << client_socket->get_remote_address() << std::endl;
+        handler_function(req_ptr, res_ptr);
     };
 
     server->set_request_callback(request_callback);
-    server->set_server_stopped_callback(server_stopped_callback);
-    server->set_error_callback(server_error_callback);
-    server->set_listen_success_callback(listen_success_callback);
-    server->set_client_connected_callback(on_client_connect);
-    server->set_client_disconnected_callback(on_client_disconnect);
     server->listen();
-    hamza_socket::cleanup_socket_library();
+    hh_socket::cleanup_socket_library();
 
     return 0;
 }

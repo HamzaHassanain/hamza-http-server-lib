@@ -1,6 +1,6 @@
 #include "../includes/http_consts.hpp"
 
-namespace hamza_http
+namespace hh_http
 {
     namespace epoll_config
     {

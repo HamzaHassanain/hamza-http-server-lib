@@ -7,7 +7,7 @@
 
 #include "../includes/http_response.hpp"
 
-namespace hamza_http
+namespace hh_http
 {
     http_response::http_response(const std::string &version, const std::multimap<std::string, std::string> &headers,
                                  std::function<void()> close_connection,
@@ -28,7 +28,7 @@ namespace hamza_http
         : version(std::move(other.version)), status_code(other.status_code),
           status_message(std::move(other.status_message)), headers(std::move(other.headers)),
           trailers(std::move(other.trailers)), body(std::move(other.body)),
-          send_message(std::move(other.send_message)), close_connection(std::move(other.close_connection))
+          close_connection(std::move(other.close_connection)), send_message(std::move(other.send_message))
     {
         other.status_code = 0;            // Invalidate the moved-from response
         other.send_message = nullptr;     // Reset the moved-from send_message

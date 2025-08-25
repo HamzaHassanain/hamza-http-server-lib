@@ -1,6 +1,8 @@
-# Hamza HTTP Server Library
+# Simple HTTP Server
 
 An HTTP server written in C++17. Provides some networking stack with TCP server capabilities.
+
+This library provides a C++17 implementation of an HTTP server built on fundamental networking principles. It abstracts away the complexity of low-level socket programming while providing full control over HTTP request/response handling. The library is built over another library I built [Simple C++ Socket Library](https://github.com/HamzaHassanain/hamza-socket-lib) that it uses to handle all the low-level socket operations.
 
 ## Table of Contents
 
@@ -8,13 +10,18 @@ An HTTP server written in C++17. Provides some networking stack with TCP server 
 
 - [Building the Project](#building-the-project)
 
-  - [Prerequisites](#prerequisites)
+- [Prerequisites](#prerequisites)
+
+  - [For Linux (Ubuntu/Debian)](#for-linux-ubuntudebian)
+  - [For Linux (CentOS/RHEL/Fedora)](#for-linux-centosrhelfedora)
+  - [For Windows](#for-windows)
+
+- [Quick Start](#quick-start)
+
+  - [Using Git Submodules](#using-git-submodules)
+
   - [How to Build](#how-to-build)
 
-    - [Prerequisites](#prerequisites-1)
-      - [For Linux (Ubuntu/Debian)](#for-linux-ubuntudebian)
-      - [For Linux (CentOS/RHEL/Fedora)](#for-linux-centosrhelfedora)
-      - [For Windows](#for-windows)
     - [Step 1: Clone the Repository](#step-1-clone-the-repository)
     - [Step 2: Understanding Build Modes](#step-2-understanding-build-modes)
       - [Development Mode (HTTP_LOCAL_TEST=1)](#development-mode-http_local_test1)
@@ -29,24 +36,13 @@ An HTTP server written in C++17. Provides some networking stack with TCP server 
     - [Step 5: Run the Project](#step-5-run-the-project)
       - [Development Mode (HTTP_LOCAL_TEST=1)](#development-mode-http_local_test1)
       - [Library Mode (HTTP_LOCAL_TEST≠1)](#library-mode-http_local_test1)
-    - [Project Structure After Build](#project-structure-after-build)
     - [Using the Library in Your Own Project](#using-the-library-in-your-own-project)
 
     - [API Documentation](#api-documentation)
 
 - [HTTP Server Examples](#http-server-examples)
 
-## Overview
-
-This library provides a modern C++17 implementation of an HTTP server built on fundamental networking principles. It abstracts away the complexity of low-level socket programming while providing full control over HTTP request/response handling. The library is built over another library I built [Simple C++ Socket Library](https://github.com/HamzaHassanain/hamza-socket-lib) that it uses to handle all the low-level socket operations.
-
-## Building The Project
-
-### How to build
-
-This guide will walk you through cloning, building, and running the project on both Linux and Windows systems.
-
-### Prerequisites
+## Prerequisites
 
 Before you start, ensure you have the following installed:
 
@@ -67,6 +63,9 @@ git --version      # Any recent version
 
 #### For Linux (CentOS/RHEL/Fedora):
 
+- CMake 3.10 or higher
+- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+
 ```bash
 # For CentOS/RHEL
 sudo yum groupinstall "Development Tools"
@@ -85,6 +84,144 @@ sudo dnf install cmake git
    - **Visual Studio 2019/2022** (recommended): Download from [visualstudio.microsoft.com](https://visualstudio.microsoft.com/)
    - **MinGW-w64**: Download from [mingw-w64.org](https://www.mingw-w64.org/)
    - **MSYS2**: Download from [msys2.org](https://www.msys2.org/)
+
+## Quick Start
+
+### Using Git Submodules
+
+You just need to clone the repository as a submodule:
+
+```bash
+# In your base project directory, run the following command
+git submodule add https://github.com/HamzaHassanain/hamza-http-server-lib.git ./submodules/http-lib
+```
+
+Then in your project's CMakeLists.txt, include the submodule:
+
+```cmake
+# Your project's CMakeLists.txt
+cmake_minimum_required(VERSION 3.10)
+project(my_project)
+
+# This block checks for Git and initializes submodules recursively
+
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+
+    # Update submodules as needed
+    option(GIT_SUBMODULE "Check submodules during build" ON)
+    option(GIT_SUBMODULE_UPDATE_LATEST "Update submodules to latest remote commits" ON)
+
+
+    if(GIT_SUBMODULE)
+        message(STATUS "Initializing and updating submodules...")
+
+        # First, initialize submodules if they don't exist
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_INIT_RESULT)
+        if(NOT GIT_SUBMOD_INIT_RESULT EQUAL "0")
+            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_INIT_RESULT}, please checkout submodules")
+        endif()
+
+        # If enabled, update submodules to latest remote commits
+        if(GIT_SUBMODULE_UPDATE_LATEST)
+            message(STATUS "Updating submodules to latest remote commits...")
+            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --remote --recursive
+                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                            RESULT_VARIABLE GIT_SUBMOD_UPDATE_RESULT)
+            if(NOT GIT_SUBMOD_UPDATE_RESULT EQUAL "0")
+                message(WARNING "git submodule update --remote --recursive failed with ${GIT_SUBMOD_UPDATE_RESULT}, continuing with current submodule versions")
+            else()
+                message(STATUS "Submodules updated to latest versions successfully")
+            endif()
+        endif()
+    endif()
+endif()
+
+
+# Add the submodule
+add_subdirectory(submodules/http-lib)
+
+# Link against the library
+target_link_libraries(my_project PRIVATE http_lib)
+```
+
+Then in your cpp file, include the http library header:
+
+```cpp
+#include "submodules/http-lib/http-lib.hpp"
+```
+
+#### Example HTTP Server
+
+```cpp
+#include "submodules/http-lib/http-lib.hpp"
+
+#include <functional>
+#include <iostream>
+
+int main()
+{
+    if (!hh_socket::initialize_socket_library())
+    {
+        std::cerr << "Failed to initialize socket library." << std::endl;
+        return 1;
+    }
+
+    auto server = std::make_shared<hh_http::http_server>(8080);
+
+    using req = hh_http::http_request;
+    using res = hh_http::http_response;
+
+    auto handler_function = []([[maybe_unused]] std::shared_ptr<req> request, std::shared_ptr<res> response)
+    {
+        try
+        {
+            std::string your_headers = request->get_method() + " " + request->get_uri() + " " + request->get_version() + "\n";
+
+            if (request->get_method() == "POST")
+            {
+                std::cout << "POST ACC with " << request->get_body().size() << " bytes of data" << std::endl;
+            }
+            response->set_status(200, "OK");
+            response->add_header("Content-Type", "text/plain");
+            response->add_header("Connection", "close");
+
+            response->set_body(your_headers);
+            response->send();
+            response->end();
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error handling request: " << e.what() << std::endl;
+            response->set_status(500, "Internal Server Error");
+            response->set_body("An error occurred while processing your request.");
+            response->end();
+        }
+    };
+    auto request_callback = [handler_function](req &request, res &response)
+    {
+        auto req_ptr = std::make_shared<req>(std::move(request));
+        auto res_ptr = std::make_shared<res>(std::move(response));
+        handler_function(req_ptr, res_ptr);
+    };
+
+    server->set_request_callback(request_callback);
+    server->listen();
+    hh_socket::cleanup_socket_library();
+
+    return 0;
+}
+
+
+
+```
+
+## Building The Project
+
+### How to build
+
+This guide will walk you through cloning, building, and running the project on both Linux and Windows systems.
 
 ### Step 1: Clone the Repository
 
@@ -221,23 +358,6 @@ The build will create a static library file:
 - **Linux/Mac**: `build/libhttp_server.a`
 - **Windows**: `build/http_server.lib` or `build/Debug/http_server.lib`
 
-### Project Structure After Build
-
-```
-hamza-http-server-lib/
-├── build/                     # Build artifacts
-│   ├── http_server           # Executable (Linux, development mode)
-│   ├── http_server.exe       # Executable (Windows, development mode)
-│   ├── libhttp_server.a      # Static library (Linux, library mode)
-│   └── http_server.lib       # Static library (Windows, library mode)
-├── src/                      # Source files
-├── includes/                 # Header files
-├── app.cpp                   # Example application
-├── CMakeLists.txt           # Build configuration
-├── .env                     # Build mode configuration
-└── run.sh                   # Build script (Linux/Mac)
-```
-
 ### Using the Library in Your Own Project
 
 Once built in library mode, you can use it in other projects:
@@ -248,18 +368,26 @@ cmake_minimum_required(VERSION 3.10)
 project(my_project)
 
 # Find the library
-find_library(HAMZA_HTTP_LIB
+find_library(HTTP_LIB
     NAMES http_server
-    PATHS /path/to/hamza-http-server-lib/build
+    PATHS path/to/hamza-http-server-lib/build
 )
 
-target_include_directories(my_app PRIVATE /path/to/hamza-http-lib/includes)
-# include "http-lib.hpp" in your cpp file for the full library
-# or use the includes directory directly
+# Also You will need to link against the socket-lib that this http server uses
+find_library(SOCKET_LIB
+    NAMES socket_lib
+    PATHS path/to/hamza-http-server-lib/build/libs/socket-lib/
+)
+
+# include "path-to-hamza-http-server-lib/http-lib.hpp" in your cpp file for the full library
+# or un-comment the bellow line
+# target_include_directories(my_app PRIVATE /path/to/hamza-http-server-lib/includes)
 
 # Link against the library
 add_executable(my_app main.cpp)
-target_link_libraries(my_app ${HAMZA_HTTP_LIB})
+
+target_link_libraries(my_app ${SOCKET_LIB})
+target_link_libraries(my_app ${HTTP_LIB})
 ```
 
 ## API Documentation
@@ -268,7 +396,7 @@ Below is a reference of the core public classes and their commonly used methods.
 
 For detailed method signatures and advanced usage patterns, consult the comprehensive inline documentation in the header files located in `includes/` directory.
 
-### hamza_http::http_request
+### hh_http::http_request
 
 ```cpp
 #include "http_request.hpp"
@@ -286,7 +414,7 @@ For detailed method signatures and advanced usage patterns, consult the comprehe
   void destroy(bool Isure)                                    // — Safely destroy request and close connection
 ```
 
-### hamza_http::http_response
+### hh_http::http_response
 
 ```cpp
 #include "http_response.hpp"
@@ -311,7 +439,7 @@ For detailed method signatures and advanced usage patterns, consult the comprehe
   void end()                                                  // — End response and close connection
 ```
 
-### hamza_http::http_server
+### hh_http::http_server
 
 ```cpp
 #include "http_server.hpp"
@@ -362,7 +490,7 @@ The library supports two main usage patterns:
 ```cpp
 #include "http-lib.hpp"
 
-void handle_request(hamza_http::http_request &req, hamza_http::http_response &res) {
+void handle_request(hh_http::http_request &req, hh_http::http_response &res) {
     res.set_status(200, "OK");
     res.add_header("Content-Type", "text/plain");
     res.set_body("Hello World!");
@@ -370,7 +498,7 @@ void handle_request(hamza_http::http_request &req, hamza_http::http_response &re
 }
 
 int main() {
-    hamza_http::http_server server(8080);
+    hh_http::http_server server(8080);
     server.set_request_callback(handle_request);
     server.listen();
     return 0;
@@ -382,12 +510,12 @@ int main() {
 ```cpp
 #include "http-lib.hpp"
 
-class MyServer : public hamza_http::http_server {
+class MyServer : public hh_http::http_server {
 public:
-    MyServer(int port) : hamza_http::http_server(port) {}
+    MyServer(int port) : hh_http::http_server(port) {}
 
 protected:
-    void on_request_received(hamza_http::http_request &req, hamza_http::http_response &res) override {
+    void on_request_received(hh_http::http_request &req, hh_http::http_response &res) override {
         res.set_status(200, "OK");
         res.add_header("Content-Type", "text/plain");
         res.set_body("Hello from custom server!");

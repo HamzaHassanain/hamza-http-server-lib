@@ -1,6 +1,6 @@
 #include "../includes/http_request.hpp"
 
-namespace hamza_http
+namespace hh_http
 {
     http_request::http_request(const std::string &method, const std::string &uri, const std::string &version,
                                const std::multimap<std::string, std::string> &headers,

@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace hamza_http
+namespace hh_http
 {
     /**
      * @brief High-level HTTP/1.1 server built on top of TCP server infrastructure.
@@ -31,7 +31,7 @@ namespace hamza_http
      * @note Thread-safe through underlying tcp_server implementation
      * @note Move-only design prevents accidental copying of server resources
      */
-    class http_server : public hamza_socket::epoll_server
+    class http_server : public hh_socket::epoll_server
     {
     private:
         /// The HTTP message handler instance, that parses the message, makes sure we have a valid HTTP request
@@ -41,7 +41,7 @@ namespace hamza_http
         int timeout_milliseconds;
 
         /// Shared pointer to the server socket
-        std::shared_ptr<hamza_socket::socket> server_socket;
+        std::shared_ptr<hh_socket::socket> server_socket;
 
         /// Callback for handling HTTP requests and generating responses
         std::function<void(http_request &, http_response &)> request_callback;
@@ -50,10 +50,10 @@ namespace hamza_http
         std::function<void(const std::exception &)> error_callback;
 
         /// Callback triggered when new client connects
-        std::function<void(std::shared_ptr<hamza_socket::connection>)> client_connected_callback;
+        std::function<void(std::shared_ptr<hh_socket::connection>)> client_connected_callback;
 
         /// Callback triggered when client disconnects
-        std::function<void(std::shared_ptr<hamza_socket::connection>)> client_disconnected_callback;
+        std::function<void(std::shared_ptr<hh_socket::connection>)> client_disconnected_callback;
 
         /// Callback triggered when server starts listening successfully
         std::function<void()> listen_success_callback;
@@ -65,7 +65,7 @@ namespace hamza_http
         std::function<void()> waiting_for_activity_callback;
 
         /// Callback triggered when HTTP headers are received
-        std::function<void(std::shared_ptr<hamza_socket::connection>, const std::multimap<std::string, std::string> &,
+        std::function<void(std::shared_ptr<hh_socket::connection>, const std::multimap<std::string, std::string> &,
                            const std::string &, const std::string &, const std::string &, const std::string &)>
             headers_received_callback;
 
@@ -80,7 +80,7 @@ namespace hamza_http
          * @note Handles HTTP/1.1 request parsing including headers and body
          * @note calles on_request_received() for further processing
          */
-        void on_message_received(std::shared_ptr<hamza_socket::connection> conn, const hamza_socket::data_buffer &message) override;
+        void on_message_received(std::shared_ptr<hh_socket::connection> conn, const hh_socket::data_buffer &message) override;
 
         /**
          * @brief Handle server startup completion.
@@ -106,14 +106,14 @@ namespace hamza_http
          * @param conn Client connection that was opened
          * @note Calls user-provided client connection opened callback if set
          */
-        virtual void on_connection_opened(std::shared_ptr<hamza_socket::connection> conn) override;
+        virtual void on_connection_opened(std::shared_ptr<hh_socket::connection> conn) override;
 
         /**
          * @brief Handle new client connection events.
          * @param conn the connection that will be closed
          * @note Calls user-provided client connection closed callback if set
          */
-        virtual void on_connection_closed(std::shared_ptr<hamza_socket::connection> conn) override;
+        virtual void on_connection_closed(std::shared_ptr<hh_socket::connection> conn) override;
 
         /**
          * @brief Handle server idle periods
@@ -140,7 +140,7 @@ namespace hamza_http
          * @param version HTTP version (e.g., "HTTP/1.1")
          * @param body Request body (if any)
          */
-        virtual void on_headers_received(std::shared_ptr<hamza_socket::connection> conn,
+        virtual void on_headers_received(std::shared_ptr<hh_socket::connection> conn,
                                          const std::multimap<std::string, std::string> &headers,
                                          const std::string &method,
                                          const std::string &uri,
@@ -161,7 +161,7 @@ namespace hamza_http
          * @throws socket_exception for socket creation, binding, or listening errors
          * @note Inherits all TCP server functionality and error handling
          */
-        explicit http_server(const hamza_socket::socket_address &addr, int timeout_milliseconds = 1000);
+        explicit http_server(const hh_socket::socket_address &addr, int timeout_milliseconds = 1000);
 
         /**
          * @brief Construct HTTP server with IP address and port.
@@ -172,7 +172,7 @@ namespace hamza_http
          * @note Defaults to IPv4 address family
          */
         explicit http_server(int port, const std::string &ip = "0.0.0.0", int timeout_milliseconds = 1000)
-            : http_server(hamza_socket::socket_address(hamza_socket::port(port), hamza_socket::ip_address(ip), hamza_socket::family(hamza_socket::IPV4)), timeout_milliseconds) {}
+            : http_server(hh_socket::socket_address(hh_socket::port(port), hh_socket::ip_address(ip), hh_socket::family(hh_socket::IPV4)), timeout_milliseconds) {}
 
         // Copy and move operations - DELETED for resource safety
         http_server(const http_server &) = delete;
@@ -220,7 +220,7 @@ namespace hamza_http
          * @note Optional callback - can be nullptr
          * @note Useful for connection logging, rate limiting, or authentication
          */
-        void set_client_connected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback);
+        void set_client_connected_callback(std::function<void(std::shared_ptr<hh_socket::connection>)> callback);
 
         /**
          * @brief Set callback for client disconnections.
@@ -228,7 +228,7 @@ namespace hamza_http
          * @note Optional callback - can be nullptr
          * @note Useful for cleanup, session management, or analytics
          */
-        void set_client_disconnected_callback(std::function<void(std::shared_ptr<hamza_socket::connection>)> callback);
+        void set_client_disconnected_callback(std::function<void(std::shared_ptr<hh_socket::connection>)> callback);
 
         /**
          * @brief Set callback for server idle periods.
@@ -243,10 +243,10 @@ namespace hamza_http
          * @brief Set the headers received callback object
          *
          * @param callback that is able to recive:
-         *      std::shared_ptr<hamza_socket::connection> conn, const std::multimap<std::string, std::string> & headers,
+         *      std::shared_ptr<hh_socket::connection> conn, const std::multimap<std::string, std::string> & headers,
          *      const std::string & method, const std::string & uri, const std::string & version, const std::string & body
          */
-        void set_headers_received_callback(std::function<void(std::shared_ptr<hamza_socket::connection>, const std::multimap<std::string, std::string> &,
+        void set_headers_received_callback(std::function<void(std::shared_ptr<hh_socket::connection>, const std::multimap<std::string, std::string> &,
                                                               const std::string &, const std::string &, const std::string &, const std::string &)>
                                                callback)
         {

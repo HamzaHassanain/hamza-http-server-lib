@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
-namespace hamza_http
+namespace hh_http
 {
     /**
      * @brief Struct representing the result of handling an HTTP message.

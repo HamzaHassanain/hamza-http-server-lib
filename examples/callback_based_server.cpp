@@ -10,14 +10,14 @@
  * to handle HTTP requests without inheritance.
  */
 
-void handle_request(hamza_http::http_request &request, hamza_http::http_response &response)
+void handle_request(hh_http::http_request &request, hh_http::http_response &response)
 {
     std::cout << "Received " << request.get_method() << " request for " << request.get_uri() << std::endl;
 
     // Set response headers
     response.set_version("HTTP/1.1");
     response.add_header("Content-Type", "text/html; charset=utf-8");
-    response.add_header("Server", "Hamza-HTTP-Server/1.0");
+    response.add_header("Server", "hh-HTTP-Server/1.0");
     response.add_header("Connection", "close");
 
     // Route handling based on URI
@@ -67,7 +67,7 @@ void handle_request(hamza_http::http_request &request, hamza_http::http_response
         response.add_header("Content-Type", "application/json");
 
         std::string info = R"({
-    "server": "Hamza HTTP Server",
+    "server": "hh HTTP Server",
     "version": "1.0",
     "architecture": "callback-based",
     "method": ")" + request.get_method() +
@@ -135,12 +135,12 @@ void handle_request(hamza_http::http_request &request, hamza_http::http_response
     response.send();
 }
 
-void on_client_connected(std::shared_ptr<hamza_socket::connection> conn)
+void on_client_connected(std::shared_ptr<hh_socket::connection> conn)
 {
     std::cout << "✅ Client connected from " << conn->get_remote_address().to_string() << std::endl;
 }
 
-void on_client_disconnected(std::shared_ptr<hamza_socket::connection> conn)
+void on_client_disconnected(std::shared_ptr<hh_socket::connection> conn)
 {
     std::cout << "❌ Client disconnected from " << conn->get_remote_address().to_string() << std::endl;
 }
@@ -171,7 +171,7 @@ int main()
 {
     try
     {
-        if (!hamza_socket::initialize_socket_library())
+        if (!hh_socket::initialize_socket_library())
         {
             std::cerr << "Failed to initialize socket library." << std::endl;
             return 1;
@@ -179,7 +179,7 @@ int main()
         std::cout << "🔧 Starting callback-based HTTP server..." << std::endl;
 
         // Create HTTP server on port 8080
-        hamza_http::http_server server(8080, "0.0.0.0", 1000);
+        hh_http::http_server server(8080, "0.0.0.0", 1000);
 
         // Set up all the callbacks
         server.set_request_callback(handle_request);
@@ -198,6 +198,6 @@ int main()
         return 1;
     }
 
-    hamza_socket::cleanup_socket_library();
+    hh_socket::cleanup_socket_library();
     return 0;
 }

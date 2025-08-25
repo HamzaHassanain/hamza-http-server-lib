@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 
-namespace hamza_http
+namespace hh_http
 {
     enum class handling_type
     {
