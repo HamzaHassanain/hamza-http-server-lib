@@ -244,7 +244,7 @@ namespace hh_http
             {
                 return http_handled_data(true, method, uri, version, headers, body);
             }
-            else if (body.size() > content_length)
+            else if (body.size() > content_length || body.size() > config::MAX_BODY_SIZE)
             {
                 return http_handled_data(true, "CONTENT_TOO_LARGE", uri, version, headers, "");
             }
@@ -599,6 +599,10 @@ namespace hh_http
             std::string body = message.to_string();
             data.body += body;
 
+            if (data.body.size() > config::MAX_BODY_SIZE)
+            {
+                return http_handled_data(true, "CONTENT_TOO_LARGE", data.uri, data.version, data.headers, "");
+            }
             // Check if we've received all expected data
             if (data.body.size() == data.content_length)
             {

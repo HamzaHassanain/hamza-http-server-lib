@@ -102,7 +102,7 @@ int main()
     {
         hh_http::config::MAX_IDLE_TIME_SECONDS = std::chrono::seconds(5);
         hh_http::config::MAX_HEADER_SIZE = 1024 * 32;
-        hh_http::config::MAX_BODY_SIZE = 1024 * 1024 * 16; // 1 MB
+        hh_http::config::MAX_BODY_SIZE = 1024 * 20; // 20 KB
         if (!hh_socket::initialize_socket_library())
         {
             std::cerr << "Failed to initialize socket library." << std::endl;
