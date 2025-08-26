@@ -161,7 +161,7 @@ namespace hh_http
          * @throws socket_exception for socket creation, binding, or listening errors
          * @note Inherits all TCP server functionality and error handling
          */
-        explicit http_server(const hh_socket::socket_address &addr, int timeout_milliseconds = 1000);
+        explicit http_server(const hh_socket::socket_address &addr, int timeout_milliseconds = epoll_config::TIMEOUT_MILLISECONDS);
 
         /**
          * @brief Construct HTTP server with IP address and port.
@@ -171,7 +171,7 @@ namespace hh_http
          * @note Convenience constructor that creates socket_address internally
          * @note Defaults to IPv4 address family
          */
-        explicit http_server(int port, const std::string &ip = "0.0.0.0", int timeout_milliseconds = 1000)
+        explicit http_server(int port, const std::string &ip = "0.0.0.0", int timeout_milliseconds = epoll_config::TIMEOUT_MILLISECONDS)
             : http_server(hh_socket::socket_address(hh_socket::port(port), hh_socket::ip_address(ip), hh_socket::family(hh_socket::IPV4)), timeout_milliseconds) {}
 
         // Copy and move operations - DELETED for resource safety

@@ -2,7 +2,7 @@
 
 #include <string>
 #include <algorithm>
-
+#include <chrono>
 namespace hh_http
 {
     namespace epoll_config
@@ -12,8 +12,17 @@ namespace hh_http
 
         // Maximum number of open file descriptors
         extern int MAX_FILE_DESCRIPTORS;
-    }
 
+        /// @brief Maximum timeout for connections (in milliseconds)
+        extern int TIMEOUT_MILLISECONDS;
+
+    }
+    namespace config
+    {
+        extern size_t MAX_HEADER_SIZE;
+        extern size_t MAX_BODY_SIZE;
+        extern std::chrono::seconds MAX_IDLE_TIME_SECONDS;
+    }
     // HTTP Version Constants
     constexpr const char *HTTP_VERSION_1_0 = "HTTP/1.0";
     constexpr const char *HTTP_VERSION_1_1 = "HTTP/1.1";

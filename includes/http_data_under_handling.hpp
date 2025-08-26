@@ -3,7 +3,7 @@
 
 #include <string>
 #include <map>
-
+#include <chrono>
 namespace hh_http
 {
     enum class handling_type
@@ -25,13 +25,18 @@ namespace hh_http
     struct http_data_under_handling
     {
         std::string socket_key; // key
-        handling_type type;     ///< to know if we handle CONTENT_LENGTH or CHUNKED
+        int FD;                     ///< file descriptor of the socket
+        handling_type type; ///< to know if we handle CONTENT_LENGTH or CHUNKED
         std::size_t content_length;
         std::string method;                              ///< HTTP method (e.g., GET, POST)
         std::string uri;                                 ///< Request URI
         std::string version;                             ///< HTTP version (e.g., "HTTP/1.1")
         std::multimap<std::string, std::string> headers; ///< Request headers
         std::string body;                                ///< Request body
+
+        // last_activity: timestamp of the last activity on this connection
+        std::chrono::steady_clock::time_point last_activity;
+
         http_data_under_handling() = default;
         http_data_under_handling(const std::string &socket_key, handling_type type) : socket_key(socket_key), type(type) {}
 

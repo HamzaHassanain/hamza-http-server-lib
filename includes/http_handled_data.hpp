@@ -20,5 +20,20 @@ namespace hh_http
                           const std::multimap<std::string, std::string> &headers,
                           const std::string &body)
             : completed(completed), method(method), uri(uri), version(version), headers(headers), body(body) {}
+
+        std::string to_string() const
+        {
+            std::string result = "Completed: " + std::string(completed ? "true" : "false") + "\n";
+            result += "Method: " + method + "\n";
+            result += "URI: " + uri + "\n";
+            result += "Version: " + version + "\n";
+            result += "Headers:\n";
+            for (const auto &header : headers)
+            {
+                result += "  " + header.first + ": " + header.second + "\n";
+            }
+            result += "Body: " + body + "\n";
+            return result;
+        }
     };
 }

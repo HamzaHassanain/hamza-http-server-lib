@@ -1,10 +1,10 @@
 
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <chrono>
 
 #include "../includes/http_server.hpp"
-
 namespace hh_http
 {
     /**
@@ -21,6 +21,20 @@ namespace hh_http
         if (!this->server_socket)
             throw std::runtime_error("Failed to create listener socket");
         this->register_listener_socket(this->server_socket);
+
+        // spin a thread that cleans idle connections each MAX_IDLE_TIME_SECONDS
+        std::function<void(int)> close_connection_for_handler = [this](int fd) -> void
+        {
+            this->close_connection(fd);
+        };
+        std::thread([this, close_connection_for_handler]()
+                    {
+            while (true)
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(config::MAX_IDLE_TIME_SECONDS));
+                handler.cleanup_idle_connections(config::MAX_IDLE_TIME_SECONDS, close_connection_for_handler);
+            } })
+            .detach();
     }
 
     /**
@@ -31,13 +45,6 @@ namespace hh_http
 
     void http_server::on_message_received(std::shared_ptr<hh_socket::connection> conn, const hh_socket::data_buffer &message)
     {
-        auto [completed, method, uri, version, headers, body] = handler.handle(conn, message);
-
-        if (static_cast<int>(headers.size()) >= 0)
-            on_headers_received(conn, headers, method, uri, version, body);
-
-        if (!completed)
-            return;
 
         auto close_connection_for_objects = [this, conn]()
         {
@@ -47,6 +54,37 @@ namespace hh_http
         {
             this->send_message(conn, hh_socket::data_buffer(message));
         };
+
+        bool completed = false;
+        std::string method = "", uri = "", version = "", body = "";
+        std::multimap<std::string, std::string> headers;
+        try
+        {
+            auto RES = handler.handle(conn, message);
+            completed = RES.completed, method = RES.method, uri = RES.uri, version = RES.version, body = RES.body;
+            headers = RES.headers;
+
+            if (static_cast<int>(headers.size()) >= 0)
+                on_headers_received(conn, headers, method, uri, version, body);
+
+            if (!completed)
+                return;
+        }
+        catch (const std::exception &e)
+        {
+
+            this->stop_reading_from_connection(conn);
+
+            // Create HTTP request object with parsed data
+            http_request request("BAD_REQUEST", uri, version, headers, body, close_connection_for_objects);
+
+            // Create HTTP response object with default HTTP/1.1 version
+            http_response response("HTTP/1.1", {}, close_connection_for_objects, send_message_for_request);
+            this->on_request_received(request, response);
+            return;
+        }
+        this->stop_reading_from_connection(conn);
+
         // Create HTTP request object with parsed data
         http_request request(method, uri, version, headers, body, close_connection_for_objects);
 
