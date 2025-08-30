@@ -71,10 +71,6 @@ namespace hh_http
                             << body;
         else
             response_stream << "\r\n";
-        for (const auto &trailer : trailers)
-        {
-            response_stream << to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
-        }
 
         return response_stream.str();
     }
@@ -175,6 +171,30 @@ namespace hh_http
             if (validate())
             {
                 send_message(to_string());
+            }
+            else
+            {
+                throw std::runtime_error("Invalid HTTP response or client connection may be already closed");
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Error sending HTTP response:\n" + std::string(e.what()));
+        }
+    }
+
+    void http_response::send_trailers()
+    {
+        try
+        {
+            if (validate())
+            {
+                std::ostringstream trailer_stream;
+                for (const auto &trailer : trailers)
+                {
+                    trailer_stream << to_upper_case(trailer.first) << ": " << trailer.second << "\r\n";
+                }
+                send_message(trailer_stream.str());
             }
             else
             {

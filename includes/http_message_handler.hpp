@@ -65,7 +65,7 @@ namespace hh_http
             auto [headers_valid, headers] = parse_headers(request_stream, uri, version);
             if (!headers_valid)
             {
-                return http_handled_data(true, "HEADERS_TOO_LARGE", uri, version, {}, "");
+                return http_handled_data(true, "BAD_HEADERS_TOO_LARGE", uri, version, {}, "");
             }
 
             // Check for Transfer-Encoding and Content-Length headers
@@ -82,7 +82,7 @@ namespace hh_http
             if (headers.count(hh_socket::to_upper_case("content-length")) > 1 ||
                 (has_content_length && has_transfer_encoding))
             {
-                return http_handled_data(true, "REPEATED_LENGTH_OR_TRANSFER_ENCODING_OR_BOTH", uri, version, headers, "");
+                return http_handled_data(true, "BAD_REPEATED_LENGTH_OR_TRANSFER_ENCODING_OR_BOTH", uri, version, headers, "");
             }
 
             // Handle body based on headers
@@ -246,7 +246,7 @@ namespace hh_http
             }
             else if (body.size() > content_length || body.size() > config::MAX_BODY_SIZE)
             {
-                return http_handled_data(true, "CONTENT_TOO_LARGE", uri, version, headers, "");
+                return http_handled_data(true, "BAD_CONTENT_TOO_LARGE", uri, version, headers, "");
             }
             else
             {
@@ -328,7 +328,7 @@ namespace hh_http
                 // Prevent unreasonable chunk sizes that could cause memory issues
                 if (chunk_size_int > config::MAX_BODY_SIZE)
                 {
-                    return http_handled_data(true, "CONTENT_TOO_LARGE", uri, version, headers, "");
+                    return http_handled_data(true, "BAD_CONTENT_TOO_LARGE", uri, version, headers, "");
                 }
 
                 // Read the exact number of bytes specified by chunk size
@@ -356,7 +356,7 @@ namespace hh_http
                 // Check if we've exceeded max body size
                 if (chunked_body_stream.str().size() > config::MAX_BODY_SIZE)
                 {
-                    return http_handled_data(true, "CONTENT_TOO_LARGE", uri, version, headers, "");
+                    return http_handled_data(true, "BAD_CONTENT_TOO_LARGE", uri, version, headers, "");
                 }
             }
 
@@ -601,7 +601,7 @@ namespace hh_http
 
             if (data.body.size() > config::MAX_BODY_SIZE)
             {
-                return http_handled_data(true, "CONTENT_TOO_LARGE", data.uri, data.version, data.headers, "");
+                return http_handled_data(true, "BAD_CONTENT_TOO_LARGE", data.uri, data.version, data.headers, "");
             }
             // Check if we've received all expected data
             if (data.body.size() == data.content_length)
@@ -614,7 +614,7 @@ namespace hh_http
             // Check for errors: too much data or exceeding size limits
             if (data.body.size() > data.content_length || data.body.size() > config::MAX_BODY_SIZE)
             {
-                return http_handled_data(true, "CONTENT_TOO_LARGE", data.uri, data.version, data.headers, "");
+                return http_handled_data(true, "BAD_CONTENT_TOO_LARGE", data.uri, data.version, data.headers, "");
             }
 
             // Still waiting for more data

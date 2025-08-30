@@ -201,6 +201,15 @@ namespace hh_http
             headers.erase(name);
         }
 
+        /**
+         * @brief Send the HTTP trailers.
+         *
+         * This function sends any trailers that have been added to the response.
+         * Trailers are sent after the response body and headers.
+         */
+
+        void send_trailers();
+
         /// Default destructor
         ~http_response() = default;
     };

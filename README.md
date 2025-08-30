@@ -394,7 +394,17 @@ target_link_libraries(my_app ${HTTP_LIB})
 
 Below is a reference of the core public classes and their commonly used methods. Include the corresponding header before use.
 
-For detailed method signatures and advanced usage patterns, consult the comprehensive inline documentation in the header files located in `includes/` directory.
+For detailed method signatures and advanced usage patterns, take a look at the `docs` directory.
+
+[API Documentation](docs/)
+
+- [http_request.hpp](docs/http_request.md)
+- [http_response.hpp](docs/http_response.md)
+- [http_server.hpp](docs/http_server.md)
+- [http_consts.hpp](docs/http_consts.md)
+- [http_message_handler.hpp](docs/http_message_handler.md)
+- [http_data_under_handling.hpp](docs/http_data_under_handling.md)
+- [http_handled_data.hpp](docs/http_handled_data.md)
 
 ### hh_http::http_request
 
