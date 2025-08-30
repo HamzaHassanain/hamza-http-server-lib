@@ -1,10 +1,10 @@
 #include <iostream>
 #include <string>
-#include <http_server.hpp>
-#include <socket_address.hpp>
+#include "../http-lib.hpp"
+
 
 /**
- * @brief Example HTTP server using callback-based architecture
+ * @brief Examplet HTTP server using callback-based architecture
  *
  * This example demonstrates how to use the http_server class with callbacks
  * to handle HTTP requests without inheritance.
